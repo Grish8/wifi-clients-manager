@@ -140,6 +140,7 @@
         td { padding: 15px; border-bottom: 1px solid #e9ecef; color: #333; }
         tr:hover { background: #f8f9fa; }
         .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; display: inline-block; }
+        .location-badge { display: inline-block; background: #e8f0fe; color: #1967d2; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
         .status-active { background: #d4edda; color: #155724; }
         .status-expiring { background: #fff3cd; color: #856404; }
         .status-expired { background: #f8d7da; color: #721c24; }
@@ -325,9 +326,9 @@
                             <option value="all">All fields</option>
                             <option value="account_number">Account Number</option>
                             <option value="name">Name</option>
+                            <option value="location">Location</option>
                             <option value="phone">Phone</option>
                             <option value="plan">Plan</option>
-                            <option value="address">Location</option>
                         </select>
                         <select id="searchStatus" class="search-select" onchange="runGlobalSearch()">
                             <option value="all">All statuses</option>
@@ -419,7 +420,7 @@
                     <table id="activeTable">
                         <thead>
                             <tr>
-                                <th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Price</th><th>Start Date</th><th>End Date</th><th>Days Left</th><th>Status</th><th>Actions</th>
+                                <th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>Price</th><th>Start Date</th><th>End Date</th><th>Days Left</th><th>Status</th><th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="activeTableBody"></tbody>
@@ -439,7 +440,7 @@
                     <table id="expiredTable">
                         <thead>
                             <tr>
-                                <th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Price</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>
+                                <th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>Price</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="expiredTableBody"></tbody>
@@ -898,7 +899,7 @@
                         : field === 'account_number' ? (c.accountNumber || '').toLowerCase()
                         : field === 'name' ? (c.name || '').toLowerCase()
                         : field === 'phone' ? (c.phone || '').toLowerCase()
-                        : field === 'address' ? (c.address || '').toLowerCase()
+                        : field === 'location' ? (c.address || '').toLowerCase()
                         : (c.plan || '').toLowerCase();
                     return haystack.includes(q);
                 });
@@ -920,7 +921,17 @@
             title.innerHTML = `${labelPart}${statusLabel}: <span class="filter-count">${filtered.length}</span> client${filtered.length !== 1 ? 's' : ''}`;
             info.innerHTML = `Found <span class="count-badge">${filtered.length}</span> matching client${filtered.length !== 1 ? 's' : ''} out of ${clients.length}.`;
             panel.classList.add('active');
-            thead.innerHTML = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th>`;
+            thead.innerHTML = `
+                <th>Account No.</th>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Phone</th>
+                <th>Plan</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            `;
             if (filtered.length === 0) {
                 tbody.innerHTML = ''; table.style.display = 'none'; empty.style.display = 'block';
                 empty.querySelector('h3').textContent = 'No matching clients';
@@ -936,6 +947,7 @@
                 return `<tr>
                     <td><span class="account-number">${highlight(client.accountNumber, query)}</span></td>
                     <td><strong>${highlight(client.name, query)}</strong></td>
+                    <td>${client.address ? `<span class="location-badge">${highlight(client.address, query)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td>
                     <td>${highlight(client.phone, query)}</td>
                     <td>${highlight(client.plan, query)}</td>
                     <td>${formatDate(client.startDate)}</td>
@@ -974,47 +986,47 @@
             switch (filterType) {
                 case 'all':
                     filtered = [...clients]; label = 'All Clients';
-                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Status</th><th>Actions</th>`;
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Status</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const st = getClientStatus(c);
                         const badge = st === 'active' ? '<span class="status-badge status-active">Active</span>'
                             : st === 'expiring' ? '<span class="status-badge status-expiring">Expiring Soon</span>'
                             : '<span class="status-badge status-expired">Expired</span>';
                         return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${c.address ? `<span class="location-badge">${escapeHtml(c.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
                                 <td>${formatDate(c.endDate)}</td><td>${badge}</td>
                                 <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
                     };
                     break;
                 case 'active':
                     filtered = getActiveClients(); label = 'Active Clients';
-                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = calculateDaysLeft(c.endDate);
                         return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${c.address ? `<span class="location-badge">${escapeHtml(c.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
                                 <td>${formatDate(c.endDate)}</td><td>${d} day${d !== 1 ? 's' : ''}</td>
                                 <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
                     };
                     break;
                 case 'expiring':
                     filtered = getExpiringSoonClients(); label = 'Clients Expiring Within 7 Days';
-                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = calculateDaysLeft(c.endDate);
                         return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${c.address ? `<span class="location-badge">${escapeHtml(c.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
                                 <td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expiring">${d} day${d !== 1 ? 's' : ''}</span></td>
                                 <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
                     };
                     break;
                 case 'expired':
                     filtered = getExpiredClients(); label = 'Expired Clients';
-                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>`;
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = Math.abs(calculateDaysLeft(c.endDate));
                         return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${c.address ? `<span class="location-badge">${escapeHtml(c.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
                                 <td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expired">${d} day${d !== 1 ? 's' : ''} ago</span></td>
                                 <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
                     };
@@ -1058,7 +1070,10 @@
                 else if (status === 'expiring') { statusBadge = '<span class="status-badge status-expiring">Expiring Soon</span>'; daysText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`; }
                 return `<tr>
                     <td><span class="account-number">${escapeHtml(client.accountNumber)}</span></td>
-                    <td><strong>${escapeHtml(client.name)}</strong></td><td>${escapeHtml(client.phone)}</td><td>${escapeHtml(client.plan)}</td>
+                    <td><strong>${escapeHtml(client.name)}</strong></td>
+                    <td>${client.address ? `<span class="location-badge">${escapeHtml(client.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td>
+                    <td>${escapeHtml(client.phone)}</td>
+                    <td>${escapeHtml(client.plan)}</td>
                     <td>Ksh ${parseFloat(client.price).toFixed(2)}</td>
                     <td>${formatDate(client.startDate)}</td><td>${formatDate(client.endDate)}</td>
                     <td>${daysText}</td><td>${statusBadge}</td>
@@ -1087,7 +1102,10 @@
                 const daysExpired = Math.abs(calculateDaysLeft(client.endDate));
                 return `<tr>
                     <td><span class="account-number">${escapeHtml(client.accountNumber)}</span></td>
-                    <td><strong>${escapeHtml(client.name)}</strong></td><td>${escapeHtml(client.phone)}</td><td>${escapeHtml(client.plan)}</td>
+                    <td><strong>${escapeHtml(client.name)}</strong></td>
+                    <td>${client.address ? `<span class="location-badge">${escapeHtml(client.address)}</span>` : '<span style="color:#adb5bd;">—</span>'}</td>
+                    <td>${escapeHtml(client.phone)}</td>
+                    <td>${escapeHtml(client.plan)}</td>
                     <td>Ksh ${parseFloat(client.price).toFixed(2)}</td><td>${formatDate(client.endDate)}</td>
                     <td><span class="status-badge status-expired">${daysExpired} day${daysExpired !== 1 ? 's' : ''} ago</span></td>
                     <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button></div></td>

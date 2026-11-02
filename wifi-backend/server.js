@@ -111,6 +111,10 @@ const pool = new Pool({
 
         const count = await pool.query('SELECT COUNT(*) as c FROM clients');
         console.log(`   Clients in DB: ${count.rows[0].c}`);
+
+        if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.GOOGLE_SHEET_ID) {
+            syncFromGoogleSheet().catch(err => console.error('Startup sync error:', err));
+        }
     } catch (err) {
         console.error('❌ Database startup FAILED');
         console.error('   Error:', err.message);
@@ -265,7 +269,7 @@ app.post('/api/clients', async (req, res) => {
     }
     try {
         const result = await pool.query(
-            `INSERT INTO clients 
+            `INSERT INTO clients
                 (account_number, name, phone, email, address, plan, price, start_date, end_date)
              VALUES 
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
@@ -377,36 +381,91 @@ app.delete('/api/history', async (req, res) => {
 async function syncFromGoogleSheet() {
     console.log('🔄 Starting Google Sheets sync...');
     try {
+        const keyPath = path.resolve(__dirname, process.env.GOOGLE_APPLICATION_CREDENTIALS);
         const auth = new google.auth.GoogleAuth({
-            keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+            keyFile: keyPath,
             scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
         });
         const sheets = google.sheets({ version: 'v4', auth });
-        const TAB_NAMES = ['OCTOBER CONFG', 'NOVEMBER CONFIG'];
-        let inserted = 0;
-        let updated = 0;
-        let skipped = 0;
+        const SOURCES = [
+            { id: process.env.GOOGLE_SHEET_ID, tab: 'OCTOBER-CONFG' },
+            { id: process.env.GOOGLE_SHEET_ID, tab: 'NOVEMBER-CONFIG' },
+        ];
 
-        for (const tab of TAB_NAMES) {
-            console.log(`   Reading tab: ${tab}`);
+        let inserted = 0, updated = 0, skipped = 0, errors = [];
+
+        for (const src of SOURCES) {
+            if (!src.id) {
+                console.log('   ⏭️  Skipping (no ID)');
+                continue;
+            }
+
+            console.log(`   Reading tab: ${src.tab}`);
             try {
                 const response = await sheets.spreadsheets.values.get({
-                    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-                    range: `${tab}!A2:I`,
+                    spreadsheetId: src.id,
+                    range: `'${src.tab}'!A1:ZZ`,
                 });
                 const rows = response.data.values || [];
-                if (rows.length === 0) {
-                    console.log(`   ⏭️  ${tab} is empty, skipping.`);
+                if (rows.length < 2) {
+                    console.log(`   ⏭️  No data rows in ${src.tab}`);
                     continue;
                 }
 
-                for (const row of rows) {
-                    const [
-                        account_number, name, phone, email, address,
-                        plan, price, start_date, end_date
-                    ] = row;
+                const headers = rows[0];
+                const headerIndex = {};
+                headers.forEach((h, i) => {
+                    if (h) headerIndex[h.trim()] = i;
+                });
 
-                    if (!account_number) {
+                const REQUIRED_SHEET_HEADERS = [
+                    'ACCOUNT', 'FIRST NAME', 'SECOND NAME',
+                    'PHONE NO.', 'PACKAGE', 'AMOUNT', 'START DATE', 'END DATE',
+                ];
+                const missing = REQUIRED_SHEET_HEADERS.filter(h => headerIndex[h] === undefined);
+                if (missing.length > 0) {
+                    const msg = `Missing header(s) in "${src.tab}": ${missing.join(', ')}`;
+                    console.error(`   ❌ ${msg}`);
+                    errors.push(msg);
+                    continue;
+                }
+
+                const get = (row, sheetHeader) => {
+                    const idx = headerIndex[sheetHeader];
+                    if (idx === undefined) return null;
+                    const val = row[idx];
+                    return val === undefined ? null : String(val).trim();
+                };
+
+                for (let r = 1; r < rows.length; r++) {
+                    const row = rows[r];
+                    if (!row || row.length === 0 || !get(row, 'ACCOUNT')) {
+                        skipped++;
+                        continue;
+                    }
+
+                    const firstName = get(row, 'FIRST NAME');
+                    const secondName = get(row, 'SECOND NAME');
+                    const fullName = [firstName, secondName]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim();
+
+                    const record = {
+                        account_number: get(row, 'ACCOUNT'),
+                        name: fullName,
+                        phone: get(row, 'PHONE NO.'),
+                        email: get(row, 'EMAIL'),
+                        address: get(row, 'LOCATION') || get(row, 'ADDRESS') || null,
+                        plan: get(row, 'PACKAGE'),
+                        price: parseFloat(get(row, 'AMOUNT')) || 0,
+                        start_date: get(row, 'START DATE'),
+                        end_date: get(row, 'END DATE'),
+                    };
+
+                    if (!record.account_number || !record.name || !record.phone ||
+                        !record.plan || !record.start_date || !record.end_date) {
+                        console.warn(`   ⚠️  Row ${r + 1}: missing required field(s), skipping`);
                         skipped++;
                         continue;
                     }
@@ -428,26 +487,37 @@ async function syncFromGoogleSheet() {
                                 end_date = EXCLUDED.end_date
                              RETURNING (xmax = 0) AS inserted`,
                             [
-                                account_number, name, phone, email || null, address || null,
-                                plan, Number.parseFloat(price) || 0, start_date, end_date
+                                record.account_number,
+                                record.name,
+                                record.phone,
+                                record.email || null,
+                                record.address,
+                                record.plan,
+                                record.price,
+                                record.start_date,
+                                record.end_date,
                             ]
                         );
                         if (result.rows[0].inserted) inserted++;
                         else updated++;
                     } catch (rowErr) {
-                        console.error(`❌ Row ${account_number} in ${tab}:`, rowErr.message);
+                        const msg = `Row ${r + 1} (${record.account_number}): ${rowErr.message}`;
+                        console.error(`   ❌ ${msg}`);
+                        errors.push(msg);
                         skipped++;
                     }
                 }
             } catch (tabErr) {
-                console.error(`❌ Could not read tab "${tab}":`, tabErr.message);
+                const msg = `Could not read "${src.tab}": ${tabErr.message}`;
+                console.error(`   ❌ ${msg}`);
+                errors.push(msg);
             }
         }
 
-        console.log(`✅ Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped.`);
-        return { success: true, inserted, updated, skipped };
+        console.log(`✅ Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped`);
+        return { success: true, inserted, updated, skipped, errors };
     } catch (err) {
-        console.error('❌ Google Sheets sync failed:', err.message);
+        console.error('❌ Sync failed:', err.message);
         throw err;
     }
 }
