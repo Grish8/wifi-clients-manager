@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Subscription Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+
+        /* LOGIN */
+        .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+        .login-container { background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 420px; padding: 45px 40px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .login-logo { text-align: center; margin-bottom: 25px; font-size: 3em; }
+        .login-container h1 { text-align: center; color: #333; font-size: 1.6em; margin-bottom: 8px; }
+        .login-container .subtitle { text-align: center; color: #6c757d; font-size: 0.95em; margin-bottom: 30px; }
+        .login-form-group { margin-bottom: 20px; }
+        .login-form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #495057; font-size: 0.9em; }
+        .password-input-wrapper { position: relative; }
+        .password-input-wrapper input { width: 100%; padding: 14px 50px 14px 16px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1em; transition: border-color 0.3s; }
+        .password-input-wrapper input:focus { outline: none; border-color: #667eea; }
+        .toggle-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 5px; color: #6c757d; transition: color 0.3s; }
+        .toggle-password:hover { color: #667eea; }
+        .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1.05em; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); }
+        .login-error { display: none; background: #f8d7da; color: #721c24; padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9em; border-left: 4px solid #dc3545; animation: shake 0.4s; }
+        .login-error.show { display: block; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+        .login-hint { text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 0.85em; color: #6c757d; line-height: 1.6; }
+
+        /* MODAL */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.25s ease; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 15px; box-shadow: 0 25px 70px rgba(0,0,0,0.4); width: 100%; max-width: 440px; padding: 35px 35px 30px; animation: modalSlide 0.3s ease; position: relative; }
+        @keyframes modalSlide { from { opacity: 0; transform: translateY(-25px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .modal-close { position: absolute; top: 15px; right: 18px; background: none; border: none; font-size: 1.5em; color: #6c757d; cursor: pointer; line-height: 1; padding: 5px; transition: color 0.3s, transform 0.3s; }
+        .modal-close:hover { color: #dc3545; transform: rotate(90deg); }
+        .modal-header-icon { text-align: center; font-size: 2.5em; margin-bottom: 15px; }
+        .modal h2 { text-align: center; color: #333; font-size: 1.4em; margin-bottom: 8px; }
+        .modal .modal-subtitle { text-align: center; color: #6c757d; font-size: 0.9em; margin-bottom: 25px; }
+        .modal-form-group { margin-bottom: 18px; }
+        .modal-form-group label { display: block; margin-bottom: 7px; font-weight: 600; color: #495057; font-size: 0.9em; }
+        .modal-form-group .password-input-wrapper input { width: 100%; padding: 12px 50px 12px 14px; border: 2px solid #e9ecef; border-radius: 10px; font-size: 1em; transition: border-color 0.3s; }
+        .modal-form-group .password-input-wrapper input:focus { outline: none; border-color: #667eea; }
+        .modal-error, .modal-success { display: none; padding: 12px 15px; border-radius: 8px; margin-bottom: 18px; font-size: 0.9em; animation: fadeIn 0.3s ease; }
+        .modal-error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .modal-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .modal-error.show, .modal-success.show { display: block; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .modal-actions .btn { flex: 1; margin-top: 0; padding: 12px; }
+        .btn-secondary { background: #e9ecef; color: #495057; }
+        .btn-secondary:hover { background: #d3d9df; }
+        .strength-meter { display: flex; gap: 4px; margin-top: 8px; }
+        .strength-bar { flex: 1; height: 5px; background: #e9ecef; border-radius: 3px; transition: background 0.3s; }
+        .strength-bar.active-weak { background: #dc3545; }
+        .strength-bar.active-fair { background: #ffc107; }
+        .strength-bar.active-good { background: #17a2b8; }
+        .strength-bar.active-strong { background: #28a745; }
+        .strength-text { font-size: 0.8em; margin-top: 5px; color: #6c757d; font-weight: 600; }
+
+        /* APP */
+        .app-wrapper { display: none; }
+        .app-wrapper.visible { display: block; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; position: relative; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 1.1em; }
+        .header-actions { position: absolute; top: 20px; right: 25px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .header-btn { background: rgba(255, 255, 255, 0.2); color: white; border: 2px solid rgba(255, 255, 255, 0.4); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.3s; white-space: nowrap; }
+        .header-btn:hover { background: rgba(255, 255, 255, 0.35); border-color: rgba(255, 255, 255, 0.7); }
+        .connection-status { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; }
+        .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #28a745; box-shadow: 0 0 6px #28a745; animation: pulse 2s infinite; }
+        .status-dot.offline { background: #dc3545; box-shadow: 0 0 6px #dc3545; animation: none; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .nav-tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; flex-wrap: wrap; }
+        .nav-tab { flex: 1; padding: 15px 20px; text-align: center; cursor: pointer; font-weight: 600; color: #6c757d; transition: all 0.3s; border: none; background: none; font-size: 1em; position: relative; min-width: 140px; }
+        .nav-tab:hover { background: #e9ecef; color: #495057; }
+        .nav-tab.active { color: #667eea; background: white; }
+        .nav-tab.active::after { content: ''; position: absolute; bottom: -2px; left: 0; right: 0; height: 3px; background: #667eea; }
+        .tab-content { display: none; padding: 30px; }
+        .tab-content.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3); cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; border: 3px solid transparent; user-select: none; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.5); }
+        .stat-card.selected { border-color: #fff; transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+        .stat-card.selected::after { content: '✓'; position: absolute; top: 10px; right: 15px; font-size: 1.2em; font-weight: bold; }
+        .stat-card.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); box-shadow: 0 5px 15px rgba(245, 87, 108, 0.3); }
+        .stat-card.warning:hover { box-shadow: 0 10px 25px rgba(245, 87, 108, 0.5); }
+        .stat-card.success { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); box-shadow: 0 5px 15px rgba(79, 172, 254, 0.3); }
+        .stat-card.success:hover { box-shadow: 0 10px 25px rgba(79, 172, 254, 0.5); }
+        .stat-card.danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); box-shadow: 0 5px 15px rgba(250, 112, 154, 0.3); }
+        .stat-card.danger:hover { box-shadow: 0 10px 25px rgba(250, 112, 154, 0.5); }
+        .stat-number { font-size: 2.5em; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9em; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-hint { font-size: 0.75em; opacity: 0.8; margin-top: 8px; font-style: italic; }
+        .search-section { background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%); border: 2px solid #e0e7ff; border-radius: 12px; padding: 22px; margin-bottom: 30px; }
+        .search-section-title { font-size: 1.15em; color: #333; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .search-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+        .search-input-wrapper { position: relative; flex: 1; min-width: 220px; }
+        .search-input-wrapper input { width: 100%; padding: 12px 45px 12px 16px; border: 2px solid #d7dffb; border-radius: 10px; font-size: 1em; transition: border-color 0.3s, box-shadow 0.3s; }
+        .search-input-wrapper input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15); }
+        .search-input-wrapper .clear-search { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6c757d; font-size: 1.2em; cursor: pointer; padding: 4px 8px; border-radius: 50%; transition: background 0.2s, color 0.2s; display: none; }
+        .search-input-wrapper .clear-search.visible { display: block; }
+        .search-input-wrapper .clear-search:hover { background: #e9ecef; color: #dc3545; }
+        .search-select { padding: 12px 14px; border: 2px solid #d7dffb; border-radius: 10px; font-size: 1em; background: white; cursor: pointer; transition: border-color 0.3s; min-width: 150px; }
+        .search-select:focus { outline: none; border-color: #667eea; }
+        .search-btn { padding: 12px 22px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 1em; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .search-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4); }
+        .search-results-info { margin-top: 14px; font-size: 0.9em; color: #495057; font-weight: 500; }
+        .search-results-info .count-badge { display: inline-block; background: #667eea; color: white; padding: 2px 10px; border-radius: 12px; font-weight: 700; margin: 0 3px; }
+        .filter-panel { display: none; background: #f8f9fa; border-radius: 12px; padding: 25px; margin-bottom: 30px; border-left: 5px solid #667eea; animation: slideDown 0.3s ease; }
+        .filter-panel.active { display: block; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .filter-title { font-size: 1.3em; color: #333; font-weight: 600; }
+        .filter-title .filter-count { color: #667eea; }
+        .close-filter { background: #6c757d; color: white; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.3s; }
+        .close-filter:hover { background: #5a6268; }
+        .form-section { background: #f8f9fa; padding: 25px; border-radius: 12px; margin-bottom: 30px; }
+        .form-section h2 { color: #333; margin-bottom: 20px; font-size: 1.3em; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-weight: 600; color: #495057; font-size: 0.9em; }
+        .form-group input, .form-group select { padding: 10px 15px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em; transition: border-color 0.3s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; }
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; font-size: 1em; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4); }
+        .btn-danger { background: #dc3545; color: white; padding: 8px 15px; font-size: 0.85em; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; color: white; padding: 8px 15px; font-size: 0.85em; }
+        .btn-success:hover { background: #218838; }
+        .btn-warning { background: #ffc107; color: #333; padding: 8px 15px; font-size: 0.85em; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #f8f9fa; padding: 15px; text-align: left; font-weight: 600; color: #495057; border-bottom: 2px solid #e9ecef; white-space: nowrap; }
+        td { padding: 15px; border-bottom: 1px solid #e9ecef; color: #333; }
+        tr:hover { background: #f8f9fa; }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; display: inline-block; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-expiring { background: #fff3cd; color: #856404; }
+        .status-expired { background: #f8d7da; color: #721c24; }
+        .account-number { font-family: 'Courier New', monospace; font-weight: bold; color: #667eea; background: #f0f4ff; padding: 3px 8px; border-radius: 4px; font-size: 0.9em; }
+        mark.search-hit { background: #ffe066; color: #333; padding: 0 2px; border-radius: 2px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #6c757d; }
+        .empty-state h3 { font-size: 1.5em; margin-bottom: 10px; }
+        .empty-state p { font-size: 1em; }
+        .search-box { width: 100%; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em; margin-bottom: 20px; transition: border-color 0.3s; }
+        .search-box:focus { outline: none; border-color: #667eea; }
+        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
+        .alert-warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .alert-danger { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.7); z-index: 999; align-items: center; justify-content: center; font-size: 1.2em; color: #667eea; font-weight: 600; }
+        .loading-overlay.active { display: flex; }
+        .spinner { border: 4px solid #e0e7ff; border-top: 4px solid #667eea; border-radius: 50%; width: 44px; height: 44px; animation: spin 0.9s linear infinite; margin-right: 12px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+        .history-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .history-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .history-stat { background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%); border: 2px solid #e0e7ff; border-radius: 12px; padding: 18px; text-align: center; }
+        .history-stat .num { font-size: 1.8em; font-weight: 700; color: #667eea; }
+        .history-stat .lbl { font-size: 0.85em; color: #6c757d; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .renewal-type-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75em; font-weight: 700; display: inline-block; text-transform: uppercase; }
+        .renewal-type-badge.renewal { background: #d4edda; color: #155724; }
+        .renewal-type-badge.created { background: #cce5ff; color: #004085; }
+        .renewal-type-badge.edit { background: #fff3cd; color: #856404; }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.6em; }
+            .header { padding: 100px 20px 20px; }
+            .header-actions { top: 15px; right: 15px; left: 15px; justify-content: center; }
+            .header-btn { padding: 6px 12px; font-size: 0.8em; }
+            .nav-tab { font-size: 0.85em; padding: 12px 10px; min-width: 50%; }
+            .form-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .stat-number { font-size: 1.8em; }
+            .filter-header { flex-direction: column; align-items: flex-start; }
+            .modal-actions { flex-direction: column; }
+            .search-controls { flex-direction: column; }
+            .search-btn { justify-content: center; }
+            .history-header { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <div class="login-logo">📡</div>
+            <h1>WiFi Manager</h1>
+            <p class="subtitle">Enter your password to access the system</p>
+            <div id="loginError" class="login-error">❌ Incorrect password. Please try again.</div>
+            <form id="loginForm">
+                <div class="login-form-group">
+                    <label for="loginPassword">Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="loginPassword" required placeholder="Enter password" autocomplete="current-password">
+                        <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)" title="Show/hide password">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="login-btn">🔓 Login</button>
+            </form>
+            <div class="login-hint">
+                <strong>Note:</strong> Password is verified by the server.<br>
+                <em>Default (if backend not yet configured): <code>admin123</code></em>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHANGE PASSWORD MODAL -->
+    <div id="changePasswordModal" class="modal-overlay" onclick="closeChangePasswordModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeChangePasswordModal()" title="Close">✕</button>
+            <div class="modal-header-icon">🔑</div>
+            <h2>Change Password</h2>
+            <p class="modal-subtitle">Update your account password</p>
+            <div id="cpError" class="modal-error"></div>
+            <div id="cpSuccess" class="modal-success"></div>
+            <form id="changePasswordForm">
+                <div class="modal-form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="currentPassword" required placeholder="Enter current password" autocomplete="current-password">
+                        <button type="button" class="toggle-password" onclick="togglePassword('currentPassword', this)">👁️</button>
+                    </div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="newPassword">New Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="newPassword" required placeholder="Enter new password" autocomplete="new-password" oninput="updateStrengthMeter()">
+                        <button type="button" class="toggle-password" onclick="togglePassword('newPassword', this)">👁️</button>
+                    </div>
+                    <div class="strength-meter">
+                        <div class="strength-bar" id="bar1"></div>
+                        <div class="strength-bar" id="bar2"></div>
+                        <div class="strength-bar" id="bar3"></div>
+                        <div class="strength-bar" id="bar4"></div>
+                    </div>
+                    <div class="strength-text" id="strengthText">Password strength: —</div>
+                </div>
+                <div class="modal-form-group">
+                    <label for="confirmPassword">Confirm New Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="confirmPassword" required placeholder="Re-enter new password" autocomplete="new-password">
+                        <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">👁️</button>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">💾 Update Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <span>Working...</span>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="appWrapper" class="app-wrapper">
+        <div class="container">
+            <div class="header">
+                <div class="header-actions">
+                    <span class="connection-status" id="connectionStatus" title="Backend connection">
+                        <span class="status-dot" id="connectionDot"></span>
+                        <span id="connectionText">Connecting...</span>
+                    </span>
+                    <button class="header-btn" onclick="loadClients()" title="Refresh data from database">🔄 Refresh</button>
+                    <button class="header-btn" onclick="syncSheets()" title="Import from Google Sheets">📥 Sync Sheets</button>
+                    <button class="header-btn" onclick="openChangePasswordModal()" title="Change your password">🔑 Change Password</button>
+                    <button class="header-btn" onclick="logout()" title="Sign out">🚪 Logout</button>
+                </div>
+                <h1>📡 WiFi Subscription Manager</h1>
+                <p>Manage your clients and subscriptions efficiently</p>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchTab(event, 'dashboard')">📊 Dashboard</button>
+                <button class="nav-tab" onclick="switchTab(event, 'clients')">👥 Active Clients</button>
+                <button class="nav-tab" onclick="switchTab(event, 'expired')">⏰ Expired Users</button>
+                <button class="nav-tab" onclick="switchTab(event, 'history')">📜 Renewal History</button>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card" data-filter="all" onclick="filterByStat('all', this)">
+                        <div class="stat-number" id="totalClients">0</div>
+                        <div class="stat-label">Total Clients</div>
+                        <div class="stat-hint">Click to view all</div>
+                    </div>
+                    <div class="stat-card success" data-filter="active" onclick="filterByStat('active', this)">
+                        <div class="stat-number" id="activeClients">0</div>
+                        <div class="stat-label">Active</div>
+                        <div class="stat-hint">Click to view active</div>
+                    </div>
+                    <div class="stat-card warning" data-filter="expiring" onclick="filterByStat('expiring', this)">
+                        <div class="stat-number" id="expiringSoon">0</div>
+                        <div class="stat-label">Expiring Soon</div>
+                        <div class="stat-hint">Click to view</div>
+                    </div>
+                    <div class="stat-card danger" data-filter="expired" onclick="filterByStat('expired', this)">
+                        <div class="stat-number" id="expiredCount">0</div>
+                        <div class="stat-label">Expired</div>
+                        <div class="stat-hint">Click to view expired</div>
+                    </div>
+                </div>
+
+                <div class="search-section">
+                    <div class="search-section-title">🔍 Search Clients</div>
+                    <div class="search-controls">
+                        <div class="search-input-wrapper">
+                            <input type="text" id="globalSearch" placeholder="Search by name, account number, phone, or plan..." autocomplete="off">
+                            <button type="button" class="clear-search" id="clearSearchBtn" onclick="clearGlobalSearch()" title="Clear search">✕</button>
+                        </div>
+                        <select id="searchField" class="search-select" onchange="runGlobalSearch()">
+                            <option value="all">All fields</option>
+                            <option value="account_number">Account Number</option>
+                            <option value="name">Name</option>
+                            <option value="phone">Phone</option>
+                            <option value="plan">Plan</option>
+                            <option value="address">Location</option>
+                        </select>
+                        <select id="searchStatus" class="search-select" onchange="runGlobalSearch()">
+                            <option value="all">All statuses</option>
+                            <option value="active">Active only</option>
+                            <option value="expiring">Expiring soon</option>
+                            <option value="expired">Expired only</option>
+                        </select>
+                        <button type="button" class="search-btn" onclick="runGlobalSearch()">🔍 Search</button>
+                    </div>
+                    <div class="search-results-info" id="searchResultsInfo"></div>
+                </div>
+
+                <div id="filterPanel" class="filter-panel">
+                    <div class="filter-header">
+                        <div class="filter-title" id="filterTitle">Showing: <span class="filter-count">0</span> client(s)</div>
+                        <button class="close-filter" onclick="closeFilter()">✕ Close</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="filterTable">
+                            <thead><tr id="filterTableHead"></tr></thead>
+                            <tbody id="filterTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="filterEmpty" class="empty-state" style="display: none;">
+                        <h3>No clients found</h3>
+                        <p>No clients match the selected filter</p>
+                    </div>
+                </div>
+
+                <div id="alertsContainer"></div>
+
+                <div class="form-section">
+                    <h2>➕ Add New Client</h2>
+                    <form id="clientForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="accountNumber">Account Number *</label>
+                                <input type="text" id="accountNumber" required placeholder="e.g., WIFI-001">
+                            </div>
+                            <div class="form-group">
+                                <label for="clientName">Full Name *</label>
+                                <input type="text" id="clientName" required placeholder="Enter client name">
+                            </div>
+                            <div class="form-group">
+                                <label for="clientPhone">Phone Number *</label>
+                                <input type="tel" id="clientPhone" required placeholder="Enter phone number">
+                            </div>
+                            <div class="form-group">
+                                <label for="clientEmail">Email (Optional)</label>
+                                <input type="email" id="clientEmail" placeholder="Enter email address">
+                            </div>
+                            <div class="form-group">
+                                <label for="clientAddress">Location</label>
+                                <input type="text" id="clientAddress" placeholder="Enter location">
+                            </div>
+                            <div class="form-group">
+                                <label for="planType">Plan Type *</label>
+                                <select id="planType" required>
+                                    <option value="">Select plan</option>
+                                    <option value="COPPER - 8Mbps">COPPER (offer) - 8Mbps</option>
+                                    <option value="BRONZE - 14Mbps">BRONZE - 14Mbps</option>
+                                    <option value="GOLD - 25Mbps">GOLD - 25Mbps</option>
+                                    <option value="DIAMOND  - 35Mbps">DIAMOND  - 35Mbps</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="planPrice">Monthly Price (Ksh) *</label>
+                                <input type="number" id="planPrice" required placeholder="0.00" step="500.00" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="startDate">Start Date *</label>
+                                <input type="date" id="startDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="endDate">End Date *</label>
+                                <input type="date" id="endDate" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Client</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Active Clients Tab -->
+            <div id="clients" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">Active Clients (<span id="activeCountLabel">0</span>)</h2>
+                <input type="text" class="search-box" id="searchActive" placeholder="🔍 Search clients by name, account, phone, plan, or location..." oninput="renderActiveClients()">
+                <div class="table-container">
+                    <table id="activeTable">
+                        <thead>
+                            <tr>
+                                <th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Price</th><th>Start Date</th><th>End Date</th><th>Days Left</th><th>Status</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="activeEmpty" class="empty-state" style="display: none;">
+                    <h3>No active clients</h3>
+                    <p>Add your first client from the Dashboard tab</p>
+                </div>
+            </div>
+
+            <!-- Expired Users Tab -->
+            <div id="expired" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">Expired Users (<span id="expiredCountLabel">0</span>)</h2>
+                <input type="text" class="search-box" id="searchExpired" placeholder="🔍 Search expired users by name, account, phone, plan, or location..." oninput="renderExpiredClients()">
+                <div class="table-container">
+                    <table id="expiredTable">
+                        <thead>
+                            <tr>
+                                <th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Price</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expiredTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="expiredEmpty" class="empty-state" style="display: none;">
+                    <h3>No expired users</h3>
+                    <p>All your clients are active</p>
+                </div>
+            </div>
+
+            <!-- Renewal History Tab -->
+            <div id="history" class="tab-content">
+                <div class="history-header">
+                    <h2 style="color: #333;">📜 Renewal History</h2>
+                    <div class="history-actions">
+                        <button class="btn btn-danger" onclick="clearAllHistory()" title="Delete all renewal history">🗑️ Clear All History</button>
+                    </div>
+                </div>
+                <div class="history-summary" id="historySummary"></div>
+                <input type="text" class="search-box" id="searchHistory" placeholder="🔍 Search renewal history by name, account, or plan..." oninput="renderHistory()">
+                <div class="table-container">
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th><th>Account No.</th><th>Client Name</th><th>Plan</th><th>Type</th><th>Previous End Date</th><th>New End Date</th><th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="historyEmpty" class="empty-state" style="display: none;">
+                    <h3>No renewal history</h3>
+                    <p>Renewals, new clients and edits will appear here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        // API CONFIGURATION
+        // =====================================================
+        const API_URL = 'http://localhost:3000/api/clients';
+        const HISTORY_API_URL = 'http://localhost:3000/api/history';
+        const AUTH_URL = 'http://localhost:3000/api/auth';
+        const SYNC_SHEETS_URL = 'http://localhost:3000/api/sync-sheets';
+
+        // =====================================================
+        // AUTHENTICATION
+        // =====================================================
+        let isLoggedIn = false;
+        let authToken = null; // In-memory only — never persisted
+
+        function authHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'x-auth-token': authToken || ''
+            };
+        }
+
+        function showLogin() {
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('appWrapper').classList.remove('visible');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginPassword').focus();
+        }
+
+        function showApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appWrapper').classList.add('visible');
+            loadClients();
+        }
+
+        function togglePassword(inputId, btn) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
+            else { input.type = 'password'; btn.textContent = '👁️'; }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const password = document.getElementById('loginPassword').value;
+            const errorBox = document.getElementById('loginError');
+            errorBox.classList.remove('show');
+
+            try {
+                const response = await fetch(`${AUTH_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.token;
+                    isLoggedIn = true;
+                    showApp();
+                } else {
+                    errorBox.classList.add('show');
+                    document.getElementById('loginPassword').value = '';
+                }
+            } catch (err) {
+                alert('❌ Cannot reach the server. Is the backend running?');
+            }
+        });
+
+        async function logout() {
+            if (!confirm('Are you sure you want to log out?')) return;
+            try {
+                await fetch(`${AUTH_URL}/logout`, {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+            } catch (e) {}
+            authToken = null;
+            isLoggedIn = false;
+            showLogin();
+        }
+
+        // =====================================================
+        // CHANGE PASSWORD (Server-based)
+        // =====================================================
+        function openChangePasswordModal() {
+            document.getElementById('changePasswordForm').reset();
+            document.getElementById('cpError').classList.remove('show');
+            document.getElementById('cpSuccess').classList.remove('show');
+            updateStrengthMeter();
+            ['currentPassword', 'newPassword', 'confirmPassword'].forEach(id => {
+                const input = document.getElementById(id);
+                input.type = 'password';
+                const btn = input.parentElement.querySelector('.toggle-password');
+                if (btn) btn.textContent = '👁️';
+            });
+            document.getElementById('changePasswordModal').classList.add('active');
+            setTimeout(() => document.getElementById('currentPassword').focus(), 100);
+        }
+
+        function closeChangePasswordModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('changePasswordModal').classList.remove('active');
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('changePasswordModal');
+                if (modal.classList.contains('active')) closeChangePasswordModal();
+            }
+        });
+
+        function calculateStrength(password) {
+            let score = 0;
+            if (!password) return 0;
+            if (password.length >= 8) score++;
+            if (password.length >= 12) score++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+            if (/\d/.test(password)) score++;
+            if (/[^a-zA-Z0-9]/.test(password)) score++;
+            return Math.min(4, Math.max(0, score - 1));
+        }
+
+        function updateStrengthMeter() {
+            const password = document.getElementById('newPassword').value;
+            const score = calculateStrength(password);
+            const bars = [document.getElementById('bar1'), document.getElementById('bar2'), document.getElementById('bar3'), document.getElementById('bar4')];
+            const text = document.getElementById('strengthText');
+            bars.forEach(b => b.classList.remove('active-weak', 'active-fair', 'active-good', 'active-strong'));
+            const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+            const classes = ['active-weak', 'active-weak', 'active-fair', 'active-good', 'active-strong'];
+            if (!password) { text.textContent = 'Password strength: —'; return; }
+            const levelIndex = Math.max(0, Math.min(4, score));
+            for (let i = 0; i <= levelIndex && i < 4; i++) bars[i].classList.add(classes[levelIndex]);
+            text.textContent = `Password strength: ${labels[levelIndex]}`;
+        }
+
+        document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const errorBox = document.getElementById('cpError');
+            const successBox = document.getElementById('cpSuccess');
+
+            errorBox.classList.remove('show');
+            successBox.classList.remove('show');
+
+            if (newPassword.length < 6) { errorBox.textContent = '❌ New password must be at least 6 characters.'; errorBox.classList.add('show'); return; }
+            if (newPassword !== confirmPassword) { errorBox.textContent = '❌ Passwords do not match.'; errorBox.classList.add('show'); return; }
+
+            try {
+                const response = await fetch(`${AUTH_URL}/change-password`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+                if (response.ok) {
+                    successBox.textContent = '✅ Password updated successfully!';
+                    successBox.classList.add('show');
+                    document.getElementById('changePasswordForm').reset();
+                    updateStrengthMeter();
+                    setTimeout(() => closeChangePasswordModal(), 1500);
+                } else {
+                    const err = await response.json().catch(() => ({}));
+                    errorBox.textContent = '❌ ' + (err.error || 'Current password is incorrect.');
+                    errorBox.classList.add('show');
+                }
+            } catch (err) {
+                errorBox.textContent = '❌ Cannot reach the server.';
+                errorBox.classList.add('show');
+            }
+        });
+
+        // =====================================================
+        // AUTO-LOCK ON INACTIVITY
+        // =====================================================
+        let inactivityTimer;
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                if (isLoggedIn) {
+                    isLoggedIn = false;
+                    alert('🔒 You have been logged out due to inactivity.');
+                    showLogin();
+                }
+            }, 30 * 60 * 1000);
+        }
+
+        ['click', 'keypress', 'mousemove', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, resetInactivityTimer, { passive: true });
+        });
+
+        // =====================================================
+        // DATA MANAGEMENT (No localStorage)
+        // =====================================================
+        let clients = [];
+        let renewalHistory = [];
+        let currentFilter = null;
+        let lastGlobalSearch = { query: '', field: 'all', status: 'all' };
+
+        function setConnectionStatus(online) {
+            const dot = document.getElementById('connectionDot');
+            const text = document.getElementById('connectionText');
+            if (online) { dot.classList.remove('offline'); text.textContent = 'Connected'; }
+            else { dot.classList.add('offline'); text.textContent = 'Offline'; }
+        }
+
+        function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
+
+        function parseDateExact(dateStr) {
+            if (!dateStr) return null;
+            if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                const [y, m, d] = dateStr.split('-').map(Number);
+                return new Date(y, m - 1, d, 12, 0, 0);
+            }
+            if (typeof dateStr === 'string') {
+                const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0);
+            }
+            const d = new Date(dateStr);
+            return isNaN(d) ? null : d;
+        }
+
+        function toYMD(dateOrStr) {
+            if (!dateOrStr) return '';
+            if (typeof dateOrStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOrStr)) return dateOrStr;
+            const d = parseDateExact(dateOrStr);
+            if (!d) return '';
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function normalizeClient(row) {
+            return {
+                id: row.id, accountNumber: row.account_number, name: row.name, phone: row.phone,
+                email: row.email || '', address: row.address || '', plan: row.plan, price: row.price,
+                startDate: toYMD(row.start_date), endDate: toYMD(row.end_date)
+            };
+        }
+
+        async function loadClients() {
+            try {
+                const [clientsRes, historyRes] = await Promise.all([
+                    fetch(API_URL),
+                    fetch(HISTORY_API_URL).catch(() => null)
+                ]);
+                if (!clientsRes.ok) throw new Error('Bad response: ' + clientsRes.status);
+                const rows = await clientsRes.json();
+                clients = rows.map(normalizeClient);
+                setConnectionStatus(true);
+                updateStats();
+                const activeTab = document.querySelector('.tab-content.active');
+                if (activeTab) {
+                    if (activeTab.id === 'clients') renderActiveClients();
+                    else if (activeTab.id === 'expired') renderExpiredClients();
+                    else if (activeTab.id === 'history') renderHistory();
+                }
+                if (lastGlobalSearch.query || lastGlobalSearch.field !== 'all' || lastGlobalSearch.status !== 'all') runGlobalSearch();
+
+                if (historyRes && historyRes.ok) renewalHistory = await historyRes.json();
+                else renewalHistory = []; // No local fallback
+            } catch (error) {
+                console.error('Failed to load clients:', error);
+                setConnectionStatus(false);
+                const alertsContainer = document.getElementById('alertsContainer');
+                if (alertsContainer) alertsContainer.innerHTML = `<div class="alert alert-danger">⚠️ Could not load clients from the server. Is the backend running at <code>${API_URL}</code>?</div>`;
+            }
+        }
+
+        async function syncSheets() {
+            if (!confirm('Import latest data from Google Sheets? This may update existing clients.')) return;
+            showLoading(true);
+            try {
+                const response = await fetch(SYNC_SHEETS_URL, {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(result.error || `Sync failed (${response.status})`);
+                }
+
+                await loadClients();
+                if (typeof result.inserted === 'number' && typeof result.updated === 'number') {
+                    const failureCount = result.failed || 0;
+                    alert(`✅ Google Sheets sync complete: ${result.inserted} inserted, ${result.updated} updated${failureCount ? `, ${failureCount} failed` : ''}.`);
+                } else {
+                    alert(result.message || '✅ Google Sheets sync complete.');
+                }
+            } catch (error) {
+                console.error('Google Sheets sync failed:', error);
+                alert(`❌ ${error.message || 'Could not sync from Google Sheets.'}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // HELPERS
+        function getToday() { const today = new Date(); today.setHours(0, 0, 0, 0); return today; }
+        function calculateDaysLeft(endDate) {
+            const today = getToday();
+            const end = parseDateExact(endDate);
+            if (!end) return 0;
+            end.setHours(0, 0, 0, 0);
+            return Math.ceil((end - today) / (1000 * 60 * 60 * 24));
+        }
+        function getClientStatus(client) {
+            const daysLeft = calculateDaysLeft(client.endDate);
+            if (daysLeft < 0) return 'expired';
+            if (daysLeft <= 7) return 'expiring';
+            return 'active';
+        }
+        function getActiveClients() { return clients.filter(c => calculateDaysLeft(c.endDate) >= 0); }
+        function getExpiredClients() { return clients.filter(c => calculateDaysLeft(c.endDate) < 0); }
+        function getExpiringSoonClients() { return clients.filter(c => { const days = calculateDaysLeft(c.endDate); return days >= 0 && days <= 7; }); }
+
+        function formatDate(dateString) {
+            const date = parseDateExact(dateString);
+            if (!date) return 'N/A';
+            const day = date.getDate();
+            const ordinal = day % 100 >= 11 && day % 100 <= 13
+                ? 'th'
+                : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${day}${ordinal} ${months[date.getMonth()]} ${date.getFullYear()}`;
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function highlight(text, query) {
+            const safe = escapeHtml(text);
+            if (!query) return safe;
+            const q = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return safe.replace(new RegExp('(' + q + ')', 'ig'), '<mark class="search-hit">$1</mark>');
+        }
+
+        // NAVIGATION
+        function switchTab(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            if (event && event.target) event.target.classList.add('active');
+            if (tabName === 'dashboard') updateStats();
+            else if (tabName === 'clients') renderActiveClients();
+            else if (tabName === 'expired') renderExpiredClients();
+            else if (tabName === 'history') renderHistory();
+        }
+
+        // STATS
+        function updateStats() {
+            const total = clients.length;
+            const activeList = getActiveClients();
+            const expiredList = getExpiredClients();
+            const expiringList = getExpiringSoonClients();
+            document.getElementById('totalClients').textContent = total;
+            document.getElementById('activeClients').textContent = activeList.length;
+            document.getElementById('expiringSoon').textContent = expiringList.length;
+            document.getElementById('expiredCount').textContent = expiredList.length;
+
+            const alertsContainer = document.getElementById('alertsContainer');
+            alertsContainer.innerHTML = '';
+            if (expiringList.length > 0) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-warning';
+                alert.innerHTML = `⚠️ <strong>${expiringList.length}</strong> client${expiringList.length > 1 ? 's' : ''} will expire within 7 days!`;
+                alertsContainer.appendChild(alert);
+            }
+            if (expiredList.length > 0) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success';
+                alert.innerHTML = `ℹ️ <strong>${expiredList.length}</strong> client${expiredList.length > 1 ? 's' : ''} have expired. Check the Expired Users tab.`;
+                alertsContainer.appendChild(alert);
+            }
+            if (currentFilter) renderFilterPanel(currentFilter);
+        }
+
+        // GLOBAL SEARCH
+        document.getElementById('globalSearch').addEventListener('input', function() {
+            document.getElementById('clearSearchBtn').classList.toggle('visible', this.value.length > 0);
+        });
+        document.getElementById('globalSearch').addEventListener('keydown', function(e) { if (e.key === 'Enter') runGlobalSearch(); });
+
+        function clearGlobalSearch() {
+            document.getElementById('globalSearch').value = '';
+            document.getElementById('searchField').value = 'all';
+            document.getElementById('searchStatus').value = 'all';
+            document.getElementById('clearSearchBtn').classList.remove('visible');
+            lastGlobalSearch = { query: '', field: 'all', status: 'all' };
+            document.getElementById('filterPanel').classList.remove('active');
+            document.getElementById('searchResultsInfo').textContent = '';
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('selected'));
+            currentFilter = null;
+        }
+
+        function runGlobalSearch() {
+            const query = document.getElementById('globalSearch').value.trim();
+            const field = document.getElementById('searchField').value;
+            const status = document.getElementById('searchStatus').value;
+            lastGlobalSearch = { query, field, status };
+            if (!query && field === 'all' && status === 'all') {
+                document.getElementById('filterPanel').classList.remove('active');
+                document.getElementById('searchResultsInfo').textContent = '';
+                return;
+            }
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('selected'));
+            currentFilter = null;
+            let filtered = [...clients];
+            const q = query.toLowerCase();
+            if (q) {
+                filtered = filtered.filter(c => {
+                    const haystack = field === 'all' ? [c.accountNumber, c.name, c.phone, c.plan, c.email, c.address].join(' ').toLowerCase()
+                        : field === 'account_number' ? (c.accountNumber || '').toLowerCase()
+                        : field === 'name' ? (c.name || '').toLowerCase()
+                        : field === 'phone' ? (c.phone || '').toLowerCase()
+                        : field === 'address' ? (c.address || '').toLowerCase()
+                        : (c.plan || '').toLowerCase();
+                    return haystack.includes(q);
+                });
+            }
+            if (status !== 'all') filtered = filtered.filter(c => getClientStatus(c) === status);
+            showSearchResults(filtered, { query, field, status });
+        }
+
+        function showSearchResults(filtered, { query, field, status }) {
+            const panel = document.getElementById('filterPanel');
+            const title = document.getElementById('filterTitle');
+            const thead = document.getElementById('filterTableHead');
+            const tbody = document.getElementById('filterTableBody');
+            const empty = document.getElementById('filterEmpty');
+            const table = document.getElementById('filterTable');
+            const info = document.getElementById('searchResultsInfo');
+            const statusLabel = status === 'all' ? '' : ` (${status})`;
+            const labelPart = query ? `Results for "${escapeHtml(query)}"` : `Search results`;
+            title.innerHTML = `${labelPart}${statusLabel}: <span class="filter-count">${filtered.length}</span> client${filtered.length !== 1 ? 's' : ''}`;
+            info.innerHTML = `Found <span class="count-badge">${filtered.length}</span> matching client${filtered.length !== 1 ? 's' : ''} out of ${clients.length}.`;
+            panel.classList.add('active');
+            thead.innerHTML = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Start Date</th><th>End Date</th><th>Status</th><th>Actions</th>`;
+            if (filtered.length === 0) {
+                tbody.innerHTML = ''; table.style.display = 'none'; empty.style.display = 'block';
+                empty.querySelector('h3').textContent = 'No matching clients';
+                empty.querySelector('p').textContent = 'Try a different search term or filter.';
+                return;
+            }
+            table.style.display = 'table'; empty.style.display = 'none';
+            tbody.innerHTML = filtered.map(client => {
+                const st = getClientStatus(client);
+                const badge = st === 'active' ? '<span class="status-badge status-active">Active</span>'
+                    : st === 'expiring' ? '<span class="status-badge status-expiring">Expiring Soon</span>'
+                    : '<span class="status-badge status-expired">Expired</span>';
+                return `<tr>
+                    <td><span class="account-number">${highlight(client.accountNumber, query)}</span></td>
+                    <td><strong>${highlight(client.name, query)}</strong></td>
+                    <td>${highlight(client.phone, query)}</td>
+                    <td>${highlight(client.plan, query)}</td>
+                    <td>${formatDate(client.startDate)}</td>
+                    <td>${formatDate(client.endDate)}</td>
+                    <td>${badge}</td>
+                    <td><div class="action-buttons">
+                        <button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button>
+                        <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
+                        <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
+                    </div></td>
+                </tr>`;
+            }).join('');
+        }
+
+        // FILTER BY STAT CARD
+        function filterByStat(filterType, element) {
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('selected'));
+            if (currentFilter === filterType) { currentFilter = null; closeFilter(); return; }
+            currentFilter = filterType;
+            if (element) element.classList.add('selected');
+            renderFilterPanel(filterType);
+        }
+        function closeFilter() {
+            currentFilter = null;
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('filterPanel').classList.remove('active');
+        }
+        function renderFilterPanel(filterType) {
+            const panel = document.getElementById('filterPanel');
+            const title = document.getElementById('filterTitle');
+            const thead = document.getElementById('filterTableHead');
+            const tbody = document.getElementById('filterTableBody');
+            const empty = document.getElementById('filterEmpty');
+            const table = document.getElementById('filterTable');
+            let filtered = [], label = '', columnDefs = '', rowRenderer = null;
+            switch (filterType) {
+                case 'all':
+                    filtered = [...clients]; label = 'All Clients';
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Status</th><th>Actions</th>`;
+                    rowRenderer = (c) => {
+                        const st = getClientStatus(c);
+                        const badge = st === 'active' ? '<span class="status-badge status-active">Active</span>'
+                            : st === 'expiring' ? '<span class="status-badge status-expiring">Expiring Soon</span>'
+                            : '<span class="status-badge status-expired">Expired</span>';
+                        return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td>${formatDate(c.endDate)}</td><td>${badge}</td>
+                                <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
+                    };
+                    break;
+                case 'active':
+                    filtered = getActiveClients(); label = 'Active Clients';
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
+                    rowRenderer = (c) => {
+                        const d = calculateDaysLeft(c.endDate);
+                        return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td>${formatDate(c.endDate)}</td><td>${d} day${d !== 1 ? 's' : ''}</td>
+                                <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
+                    };
+                    break;
+                case 'expiring':
+                    filtered = getExpiringSoonClients(); label = 'Clients Expiring Within 7 Days';
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
+                    rowRenderer = (c) => {
+                        const d = calculateDaysLeft(c.endDate);
+                        return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expiring">${d} day${d !== 1 ? 's' : ''}</span></td>
+                                <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
+                    };
+                    break;
+                case 'expired':
+                    filtered = getExpiredClients(); label = 'Expired Clients';
+                    columnDefs = `<th>Account No.</th><th>Name</th><th>Phone</th><th>Plan</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>`;
+                    rowRenderer = (c) => {
+                        const d = Math.abs(calculateDaysLeft(c.endDate));
+                        return `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
+                                <td><strong>${escapeHtml(c.name)}</strong></td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td>
+                                <td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expired">${d} day${d !== 1 ? 's' : ''} ago</span></td>
+                                <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${c.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button></div></td>`;
+                    };
+                    break;
+            }
+            title.innerHTML = `${label}: <span class="filter-count">${filtered.length}</span> client${filtered.length !== 1 ? 's' : ''}`;
+            document.getElementById('searchResultsInfo').textContent = '';
+            panel.classList.add('active');
+            thead.innerHTML = columnDefs;
+            if (filtered.length === 0) {
+                tbody.innerHTML = ''; table.style.display = 'none'; empty.style.display = 'block';
+                empty.querySelector('h3').textContent = `No ${filterType === 'all' ? '' : filterType} clients`;
+                empty.querySelector('p').textContent = filterType === 'all' ? 'Add your first client using the form below' : `There are currently no ${filterType} clients`;
+            } else {
+                table.style.display = 'table'; empty.style.display = 'none';
+                tbody.innerHTML = filtered.map(c => `<tr>${rowRenderer(c)}</tr>`).join('');
+            }
+        }
+
+        // RENDER ACTIVE CLIENTS
+        function renderActiveClients() {
+            const searchTerm = (document.getElementById('searchActive').value || '').toLowerCase();
+            const activeClients = getActiveClients();
+            const filtered = activeClients.filter(c => (c.name || '').toLowerCase().includes(searchTerm) || (c.phone || '').includes(searchTerm) || (c.plan || '').toLowerCase().includes(searchTerm) || (c.accountNumber || '').toLowerCase().includes(searchTerm) || (c.address || '').toLowerCase().includes(searchTerm));
+            document.getElementById('activeCountLabel').textContent = activeClients.length;
+            const tbody = document.getElementById('activeTableBody');
+            const emptyState = document.getElementById('activeEmpty');
+            const table = document.getElementById('activeTable');
+            if (filtered.length === 0) {
+                tbody.innerHTML = ''; table.style.display = 'none'; emptyState.style.display = 'block';
+                emptyState.querySelector('h3').textContent = activeClients.length === 0 ? 'No active clients' : 'No matching clients';
+                emptyState.querySelector('p').textContent = activeClients.length === 0 ? 'Add your first client from the Dashboard tab' : 'Try a different search term';
+                return;
+            }
+            table.style.display = 'table'; emptyState.style.display = 'none';
+            tbody.innerHTML = filtered.map(client => {
+                const daysLeft = calculateDaysLeft(client.endDate);
+                const status = getClientStatus(client);
+                let statusBadge = '', daysText = '';
+                if (status === 'active') { statusBadge = '<span class="status-badge status-active">Active</span>'; daysText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`; }
+                else if (status === 'expiring') { statusBadge = '<span class="status-badge status-expiring">Expiring Soon</span>'; daysText = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`; }
+                return `<tr>
+                    <td><span class="account-number">${escapeHtml(client.accountNumber)}</span></td>
+                    <td><strong>${escapeHtml(client.name)}</strong></td><td>${escapeHtml(client.phone)}</td><td>${escapeHtml(client.plan)}</td>
+                    <td>Ksh ${parseFloat(client.price).toFixed(2)}</td>
+                    <td>${formatDate(client.startDate)}</td><td>${formatDate(client.endDate)}</td>
+                    <td>${daysText}</td><td>${statusBadge}</td>
+                    <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button></div></td>
+                </tr>`;
+            }).join('');
+        }
+
+        // RENDER EXPIRED CLIENTS
+        function renderExpiredClients() {
+            const searchTerm = (document.getElementById('searchExpired').value || '').toLowerCase();
+            const expiredClients = getExpiredClients();
+            const filtered = expiredClients.filter(c => (c.name || '').toLowerCase().includes(searchTerm) || (c.phone || '').includes(searchTerm) || (c.plan || '').toLowerCase().includes(searchTerm) || (c.accountNumber || '').toLowerCase().includes(searchTerm) || (c.address || '').toLowerCase().includes(searchTerm));
+            document.getElementById('expiredCountLabel').textContent = expiredClients.length;
+            const tbody = document.getElementById('expiredTableBody');
+            const emptyState = document.getElementById('expiredEmpty');
+            const table = document.getElementById('expiredTable');
+            if (filtered.length === 0) {
+                tbody.innerHTML = ''; table.style.display = 'none'; emptyState.style.display = 'block';
+                emptyState.querySelector('h3').textContent = expiredClients.length === 0 ? 'No expired users' : 'No matching users';
+                emptyState.querySelector('p').textContent = expiredClients.length === 0 ? 'All your clients are active' : 'Try a different search term';
+                return;
+            }
+            table.style.display = 'table'; emptyState.style.display = 'none';
+            tbody.innerHTML = filtered.map(client => {
+                const daysExpired = Math.abs(calculateDaysLeft(client.endDate));
+                return `<tr>
+                    <td><span class="account-number">${escapeHtml(client.accountNumber)}</span></td>
+                    <td><strong>${escapeHtml(client.name)}</strong></td><td>${escapeHtml(client.phone)}</td><td>${escapeHtml(client.plan)}</td>
+                    <td>Ksh ${parseFloat(client.price).toFixed(2)}</td><td>${formatDate(client.endDate)}</td>
+                    <td><span class="status-badge status-expired">${daysExpired} day${daysExpired !== 1 ? 's' : ''} ago</span></td>
+                    <td><div class="action-buttons"><button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button><button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button><button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button></div></td>
+                </tr>`;
+            }).join('');
+        }
+
+        // RENEWAL HISTORY (No localStorage)
+        async function recordHistory(entry) {
+            try {
+                await fetch(HISTORY_API_URL, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify(entry)
+                });
+            } catch (e) {
+                console.warn('History recording failed.');
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch(HISTORY_API_URL);
+                if (response.ok) renewalHistory = await response.json();
+                else renewalHistory = [];
+            } catch (e) { renewalHistory = []; }
+        }
+
+        async function renderHistory() {
+            await loadHistory();
+            const searchTerm = (document.getElementById('searchHistory').value || '').toLowerCase();
+            const filtered = renewalHistory.filter(h => !searchTerm || (h.client_name || '').toLowerCase().includes(searchTerm) || (h.account_number || '').toLowerCase().includes(searchTerm) || (h.plan || '').toLowerCase().includes(searchTerm));
+            const summary = document.getElementById('historySummary');
+            const totalRenewals = renewalHistory.filter(h => h.type === 'renewal').length;
+            const totalCreated = renewalHistory.filter(h => h.type === 'created').length;
+            const totalEdits = renewalHistory.filter(h => h.type === 'edit').length;
+            summary.innerHTML = `
+                <div class="history-stat"><div class="num">${renewalHistory.length}</div><div class="lbl">Total Records</div></div>
+                <div class="history-stat"><div class="num">${totalRenewals}</div><div class="lbl">Renewals</div></div>
+                <div class="history-stat"><div class="num">${totalCreated}</div><div class="lbl">New Clients</div></div>
+                <div class="history-stat"><div class="num">${totalEdits}</div><div class="lbl">Edits</div></div>
+            `;
+            const tbody = document.getElementById('historyTableBody');
+            const emptyState = document.getElementById('historyEmpty');
+            const table = document.getElementById('historyTable');
+            if (filtered.length === 0) {
+                tbody.innerHTML = ''; table.style.display = 'none'; emptyState.style.display = 'block';
+                emptyState.querySelector('h3').textContent = renewalHistory.length === 0 ? 'No renewal history' : 'No matching records';
+                emptyState.querySelector('p').textContent = renewalHistory.length === 0 ? 'Renewals, new clients and edits will appear here (requires backend)' : 'Try a different search term';
+                return;
+            }
+            table.style.display = 'table'; emptyState.style.display = 'none';
+            tbody.innerHTML = filtered.map(h => {
+                const typeClass = h.type === 'renewal' ? 'renewal' : h.type === 'created' ? 'created' : 'edit';
+                const typeLabel = h.type === 'renewal' ? 'Renewal' : h.type === 'created' ? 'New Client' : 'Edit';
+                const dateStr = h.created_at ? formatDate(new Date(h.created_at).toISOString()) : (h.date ? formatDate(h.date) : 'N/A');
+                return `<tr>
+                    <td>${dateStr}</td>
+                    <td><span class="account-number">${escapeHtml(h.account_number)}</span></td>
+                    <td><strong>${escapeHtml(h.client_name)}</strong></td>
+                    <td>${escapeHtml(h.plan)}</td>
+                    <td><span class="renewal-type-badge ${typeClass}">${typeLabel}</span></td>
+                    <td>${h.previous_end_date ? formatDate(h.previous_end_date) : '—'}</td>
+                    <td>${h.new_end_date ? formatDate(h.new_end_date) : '—'}</td>
+                    <td><button class="btn btn-danger" onclick="deleteHistoryEntry('${h.id}')">Delete</button></td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function deleteHistoryEntry(id) {
+            if (!confirm('Delete this history record?')) return;
+            try { await fetch(`${HISTORY_API_URL}/${id}`, { method: 'DELETE' }); } catch (e) {}
+            await renderHistory();
+        }
+
+        async function clearAllHistory() {
+            if (!confirm('⚠️ Are you sure you want to delete ALL renewal history?\n\nThis cannot be undone.')) return;
+            try { await fetch(HISTORY_API_URL, { method: 'DELETE' }); } catch (e) {}
+            await renderHistory();
+        }
+
+        // ADD CLIENT
+        async function addClient(e) {
+            e.preventDefault();
+            const accountNumber = document.getElementById('accountNumber').value.trim();
+            if (clients.some(c => (c.accountNumber || '').toLowerCase() === accountNumber.toLowerCase())) {
+                alert(`❌ Account number "${accountNumber}" already exists.`);
+                return;
+            }
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const payload = {
+                account_number: accountNumber, name: document.getElementById('clientName').value.trim(),
+                phone: document.getElementById('clientPhone').value.trim(), email: document.getElementById('clientEmail').value.trim(),
+                address: document.getElementById('clientAddress').value.trim(), plan: document.getElementById('planType').value,
+                price: parseFloat(document.getElementById('planPrice').value), start_date: startDate, end_date: endDate
+            };
+            showLoading(true);
+            try {
+                const response = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) { const err = await response.json().catch(() => ({})); alert('❌ ' + (err.error || 'Failed to add client')); return; }
+                await recordHistory({ account_number: payload.account_number, client_name: payload.name, plan: payload.plan, type: 'created', previous_end_date: null, new_end_date: payload.end_date });
+                document.getElementById('clientForm').reset();
+                setDefaultDates();
+                await loadClients();
+                alert(`✅ Client "${payload.name}" added successfully!`);
+            } catch (error) { console.error(error); alert('❌ Could not connect to the server. Is the backend running?'); setConnectionStatus(false); }
+            finally { showLoading(false); }
+        }
+
+        // DELETE
+        async function deleteClient(id) {
+            const client = clients.find(c => String(c.id) === String(id));
+            if (!client) return;
+            if (!confirm(`Are you sure you want to delete "${client.name}" (${client.accountNumber})?`)) return;
+            showLoading(true);
+            try { const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' }); if (!response.ok) throw new Error('Delete failed'); await loadClients(); }
+            catch (error) { console.error(error); alert('❌ Failed to delete client.'); }
+            finally { showLoading(false); }
+        }
+
+        // RENEW
+        async function renewClient(id) {
+            const client = clients.find(c => String(c.id) === String(id));
+            if (!client) return;
+            const newEndDate = prompt(`Renew subscription for "${client.name}" (${client.accountNumber})\n\nCurrent end date: ${formatDate(client.endDate)}\n\nEnter new end date (YYYY-MM-DD):`, getDefaultRenewalDate());
+            if (!newEndDate) return;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(newEndDate) || isNaN(parseDateExact(newEndDate))) { alert('❌ Invalid date format. Please use YYYY-MM-DD.'); return; }
+            const previousEndDate = client.endDate;
+            const payload = { account_number: client.accountNumber, name: client.name, phone: client.phone, email: client.email || '', address: client.address || '', plan: client.plan, price: parseFloat(client.price), start_date: client.startDate, end_date: newEndDate };
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error('Renew failed');
+                await recordHistory({ account_number: client.accountNumber, client_name: client.name, plan: client.plan, type: 'renewal', previous_end_date: previousEndDate, new_end_date: newEndDate });
+                await loadClients();
+                alert(`✅ Subscription renewed for "${client.name}" until ${formatDate(newEndDate)}`);
+            } catch (error) { console.error(error); alert('❌ Failed to renew subscription.'); }
+            finally { showLoading(false); }
+        }
+
+        function getDefaultRenewalDate() {
+            const date = new Date(); date.setMonth(date.getMonth() + 1);
+            const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, '0'); const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        // EDIT
+        function editClient(id) {
+            const client = clients.find(c => String(c.id) === String(id));
+            if (!client) return;
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('dashboard').classList.add('active');
+            document.querySelectorAll('.nav-tab')[0].classList.add('active');
+            document.getElementById('accountNumber').value = client.accountNumber || '';
+            document.getElementById('clientName').value = client.name;
+            document.getElementById('clientPhone').value = client.phone;
+            document.getElementById('clientEmail').value = client.email || '';
+            document.getElementById('clientAddress').value = client.address || '';
+            document.getElementById('planType').value = client.plan;
+            document.getElementById('planPrice').value = client.price;
+            document.getElementById('startDate').value = client.startDate;
+            document.getElementById('endDate').value = client.endDate;
+            const form = document.getElementById('clientForm');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Update Client';
+            const previousEndDate = client.endDate;
+            form.onsubmit = async function(e) {
+                e.preventDefault();
+                const newAccountNumber = document.getElementById('accountNumber').value.trim();
+                if (clients.some(c => String(c.id) !== String(id) && (c.accountNumber || '').toLowerCase() === newAccountNumber.toLowerCase())) { alert(`❌ Account number "${newAccountNumber}" already exists.`); return; }
+                const payload = { account_number: newAccountNumber, name: document.getElementById('clientName').value.trim(), phone: document.getElementById('clientPhone').value.trim(), email: document.getElementById('clientEmail').value.trim(), address: document.getElementById('clientAddress').value.trim(), plan: document.getElementById('planType').value, price: parseFloat(document.getElementById('planPrice').value), start_date: document.getElementById('startDate').value, end_date: document.getElementById('endDate').value };
+                showLoading(true);
+                try {
+                    const response = await fetch(`${API_URL}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error('Update failed');
+                    await recordHistory({ account_number: payload.account_number, client_name: payload.name, plan: payload.plan, type: 'edit', previous_end_date: previousEndDate, new_end_date: payload.end_date });
+                    await loadClients();
+                    form.reset(); setDefaultDates(); form.onsubmit = addClient; submitBtn.textContent = 'Add Client';
+                    alert(`✅ Client "${payload.name}" updated successfully!`);
+                } catch (error) { console.error(error); alert('❌ Failed to update client.'); }
+                finally { showLoading(false); }
+            };
+            document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // DEFAULT DATES
+        function setDefaultDates() {
+            const today = new Date(); const nextMonth = new Date(today); nextMonth.setMonth(nextMonth.getMonth() + 1);
+            const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            document.getElementById('startDate').value = fmt(today);
+            document.getElementById('endDate').value = fmt(nextMonth);
+        }
+
+        // INITIALIZATION
+        document.getElementById('clientForm').addEventListener('submit', addClient);
+        showLogin(); // Always start logged out
+        setDefaultDates();
+        resetInactivityTimer();
+    </script>
+</body>
+</html>
