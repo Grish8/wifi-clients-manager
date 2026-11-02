@@ -382,7 +382,7 @@ async function syncFromGoogleSheet() {
             scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
         });
         const sheets = google.sheets({ version: 'v4', auth });
-        const TAB_NAMES = ['Sheet1', 'Sheet2'];
+        const TAB_NAMES = ['OCTOBER CONFG', 'NOVEMBER CONFIG'];
         let inserted = 0;
         let updated = 0;
         let skipped = 0;
