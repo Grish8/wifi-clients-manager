@@ -1,10 +1,12 @@
+
 {
   "name": "wifi-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "WiFi Clients Manager Backend",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -17,8 +19,5 @@
     "express": "^5.3.0",
     "googleapis": "^189.0.0",
     "pg": "^8.23.1"
-  },
-  "allowScripts": {
-    "googleapis@189.0.0": true
   }
 }
