@@ -1,7 +1,6 @@
 const { google } = require('googleapis');
 const path = require('path');
 
-
 const dns = require('node:dns');
 dns.setDefaultResultOrder('ipv4first');
 
@@ -59,7 +58,7 @@ const pool = new Pool({
         console.log('   Server time:', r.rows[0].now);
         console.log('');
 
-        // Ensure required tables exist
+        // clients table — end_date is now NULLABLE
         await pool.query(`
             CREATE TABLE IF NOT EXISTS clients (
                 id SERIAL PRIMARY KEY,
@@ -70,10 +69,14 @@ const pool = new Pool({
                 address TEXT,
                 plan VARCHAR(100) NOT NULL,
                 price NUMERIC(10, 2) NOT NULL,
-                start_date DATE NOT NULL,
-                end_date DATE NOT NULL
+                start_date DATE,
+                end_date DATE
             );
         `);
+
+        // Migration: if the table already exists with NOT NULL, drop that constraint
+        await pool.query(`ALTER TABLE clients ALTER COLUMN start_date DROP NOT NULL;`);
+        await pool.query(`ALTER TABLE clients ALTER COLUMN end_date DROP NOT NULL;`);
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS renewal_history (
@@ -98,7 +101,6 @@ const pool = new Pool({
 
         console.log('✅ All tables ready (clients, renewal_history, admin_credentials)');
 
-        // Seed default admin password if none exists
         const creds = await pool.query('SELECT COUNT(*) as c FROM admin_credentials');
         if (Number(creds.rows[0].c) === 0) {
             const defaultHash = await bcrypt.hash('admin123', 10);
@@ -140,13 +142,10 @@ function sendDbError(res, err, context) {
 }
 
 // =====================================================
-// SESSION MANAGEMENT (in-memory tokens)
+// SESSION MANAGEMENT
 // =====================================================
-// Sessions are stored in memory. They reset when the server
-// restarts, which is fine for a single-user admin tool.
-// For multi-user, migrate to a persistent session store.
 const sessions = new Map();
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
 function createSession() {
     const token = crypto.randomBytes(32).toString('hex');
@@ -179,7 +178,6 @@ function requireAuth(req, res, next) {
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
     if (!password) return res.status(400).json({ error: 'Password required' });
-
     try {
         const result = await pool.query('SELECT password_hash FROM admin_credentials ORDER BY id DESC LIMIT 1');
         if (result.rows.length === 0) {
@@ -187,7 +185,6 @@ app.post('/api/auth/login', async (req, res) => {
         }
         const ok = await bcrypt.compare(password, result.rows[0].password_hash);
         if (!ok) return res.status(401).json({ error: 'Incorrect password' });
-
         const token = createSession();
         res.json({ success: true, token });
     } catch (err) {
@@ -203,21 +200,14 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.post('/api/auth/change-password', requireAuth, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-        return res.status(400).json({ error: 'Both passwords required' });
-    }
-    if (newPassword.length < 6) {
-        return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
-
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Both passwords required' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
     try {
         const result = await pool.query('SELECT id, password_hash FROM admin_credentials ORDER BY id DESC LIMIT 1');
         const row = result.rows[0];
         if (!row) return res.status(500).json({ error: 'Admin credentials not configured' });
-
         const ok = await bcrypt.compare(currentPassword, row.password_hash);
         if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
-
         const newHash = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE admin_credentials SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, row.id]);
         console.log('✅ Admin password changed');
@@ -264,17 +254,17 @@ app.get('/api/clients/:id', async (req, res) => {
 
 app.post('/api/clients', async (req, res) => {
     const { account_number, name, phone, email, address, plan, price, start_date, end_date } = req.body;
-    if (!account_number || !name || !phone || !plan || price == null || !start_date || !end_date) {
+    if (!account_number || !name || !phone || !plan || price == null) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
         const result = await pool.query(
             `INSERT INTO clients
                 (account_number, name, phone, email, address, plan, price, start_date, end_date)
-             VALUES 
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+             VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING *`,
-            [account_number, name, phone, email || null, address || null, plan, price, start_date, end_date]
+            [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null]
         );
         console.log(`✅ Added client: ${name} (${account_number})`);
         res.status(201).json(result.rows[0]);
@@ -287,17 +277,17 @@ app.post('/api/clients', async (req, res) => {
 app.put('/api/clients/:id', async (req, res) => {
     const { id } = req.params;
     const { account_number, name, phone, email, address, plan, price, start_date, end_date } = req.body;
-    if (!account_number || !name || !phone || !plan || price == null || !start_date || !end_date) {
+    if (!account_number || !name || !phone || !plan || price == null) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
         const result = await pool.query(
-            `UPDATE clients SET 
+            `UPDATE clients SET
                 account_number = $1, name = $2, phone = $3, email = $4, address = $5,
                 plan = $6, price = $7, start_date = $8, end_date = $9
-             WHERE id = $10 
+             WHERE id = $10
              RETURNING *`,
-            [account_number, name, phone, email || null, address || null, plan, price, start_date, end_date, id]
+            [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null, id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
         console.log(`✅ Updated client: ${name} (${account_number})`);
@@ -339,10 +329,10 @@ app.post('/api/history', async (req, res) => {
     }
     try {
         const result = await pool.query(
-            `INSERT INTO renewal_history 
+            `INSERT INTO renewal_history
                 (account_number, client_name, plan, type, previous_end_date, new_end_date)
-             VALUES 
-                ($1, $2, $3, $4, $5, $6) 
+             VALUES
+                ($1, $2, $3, $4, $5, $6)
              RETURNING *`,
             [account_number, client_name, plan, type, previous_end_date || null, new_end_date || null]
         );
@@ -418,9 +408,10 @@ async function syncFromGoogleSheet() {
                     if (h) headerIndex[h.trim()] = i;
                 });
 
+                // Required headers — RENEWAL DATE, START DATE, END DATE are optional
                 const REQUIRED_SHEET_HEADERS = [
                     'ACCOUNT', 'FIRST NAME', 'SECOND NAME',
-                    'PHONE NO.', 'PACKAGE', 'AMOUNT', 'START DATE', 'END DATE',
+                    'PHONE NO.', 'PACKAGE', 'AMOUNT',
                 ];
                 const missing = REQUIRED_SHEET_HEADERS.filter(h => headerIndex[h] === undefined);
                 if (missing.length > 0) {
@@ -451,6 +442,17 @@ async function syncFromGoogleSheet() {
                         .join(' ')
                         .trim();
 
+                    // ── NEW LOGIC ──
+                    // 1. RENEWAL DATE (if present) becomes the new start_date
+                    // 2. Otherwise fall back to the old START DATE column
+                    // 3. end_date is optional — if empty in the sheet, stays NULL
+                    const renewalDate = get(row, 'RENEWAL DATE');
+                    const sheetStartDate = get(row, 'START DATE');
+                    const sheetEndDate = get(row, 'END DATE');
+
+                    const startDate = renewalDate || sheetStartDate || null;
+                    const endDate = sheetEndDate || null;
+
                     const record = {
                         account_number: get(row, 'ACCOUNT'),
                         name: fullName,
@@ -459,12 +461,12 @@ async function syncFromGoogleSheet() {
                         address: get(row, 'LOCATION') || get(row, 'ADDRESS') || null,
                         plan: get(row, 'PACKAGE'),
                         price: parseFloat(get(row, 'AMOUNT')) || 0,
-                        start_date: get(row, 'START DATE'),
-                        end_date: get(row, 'END DATE'),
+                        start_date: startDate,
+                        end_date: endDate,
                     };
 
-                    if (!record.account_number || !record.name || !record.phone ||
-                        !record.plan || !record.start_date || !record.end_date) {
+                    // Required check — do NOT require end_date anymore
+                    if (!record.account_number || !record.name || !record.phone || !record.plan) {
                         console.warn(`   ⚠️  Row ${r + 1}: missing required field(s), skipping`);
                         skipped++;
                         continue;
