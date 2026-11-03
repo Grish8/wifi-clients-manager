@@ -77,6 +77,7 @@ const pool = new Pool({
         // Migration: if the table already exists with NOT NULL, drop that constraint
         await pool.query(`ALTER TABLE clients ALTER COLUMN start_date DROP NOT NULL;`);
         await pool.query(`ALTER TABLE clients ALTER COLUMN end_date DROP NOT NULL;`);
+        await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS pending_end_date BOOLEAN DEFAULT FALSE;`);
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS renewal_history (
@@ -254,15 +255,15 @@ app.get('/api/clients/:id', async (req, res) => {
 
 app.post('/api/clients', async (req, res) => {
     const { account_number, name, phone, email, address, plan, price, start_date, end_date } = req.body;
-    if (!account_number || !name || !phone || !plan || price == null) {
+    if (!account_number || !name || !phone || !plan || price == null || !start_date || !end_date) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
         const result = await pool.query(
             `INSERT INTO clients
-                (account_number, name, phone, email, address, plan, price, start_date, end_date)
+                (account_number, name, phone, email, address, plan, price, start_date, end_date, pending_end_date)
              VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
              RETURNING *`,
             [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null]
         );
@@ -277,19 +278,24 @@ app.post('/api/clients', async (req, res) => {
 app.put('/api/clients/:id', async (req, res) => {
     const { id } = req.params;
     const { account_number, name, phone, email, address, plan, price, start_date, end_date } = req.body;
-    if (!account_number || !name || !phone || !plan || price == null) {
+    if (!account_number || !name || !phone || !plan || price == null || !start_date) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
         const result = await pool.query(
             `UPDATE clients SET
                 account_number = $1, name = $2, phone = $3, email = $4, address = $5,
-                plan = $6, price = $7, start_date = $8, end_date = $9
-             WHERE id = $10
+                plan = $6, price = $7, start_date = $8, end_date = $9,
+                pending_end_date = CASE WHEN $9 IS NULL THEN pending_end_date ELSE FALSE END
+             WHERE id = $10 AND (pending_end_date = TRUE OR $9 IS NOT NULL)
              RETURNING *`,
             [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null, id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+        if (result.rows.length === 0) {
+            const existing = await pool.query('SELECT 1 FROM clients WHERE id = $1', [id]);
+            if (existing.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
         console.log(`✅ Updated client: ${name} (${account_number})`);
         res.json(result.rows[0]);
     } catch (err) {
@@ -368,6 +374,38 @@ app.delete('/api/history', async (req, res) => {
 // =====================================================
 // GOOGLE SHEETS SYNC
 // =====================================================
+function normalizeSheetDate(v) {
+    if (!v) return null;
+    const s = String(v).trim();
+    if (!s) return null;
+
+    let year, month, day;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+        [year, month, day] = s.split('-').map(Number);
+    } else {
+        const match = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+        if (match) {
+            month = Number(match[1]);
+            day = Number(match[2]);
+            year = Number(match[3]);
+            if (year < 100) year += 2000;
+            if (month > 12) [month, day] = [day, month];
+        } else {
+            const parsed = new Date(s);
+            if (Number.isNaN(parsed.getTime())) return null;
+            year = parsed.getFullYear();
+            month = parsed.getMonth() + 1;
+            day = parsed.getDate();
+        }
+    }
+
+    const normalized = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const parsedDate = new Date(`${normalized}T00:00:00Z`);
+    return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === normalized
+        ? normalized
+        : null;
+}
+
 async function syncFromGoogleSheet() {
     console.log('🔄 Starting Google Sheets sync...');
     try {
@@ -442,16 +480,25 @@ async function syncFromGoogleSheet() {
                         .join(' ')
                         .trim();
 
-                    // ── NEW LOGIC ──
-                    // 1. RENEWAL DATE (if present) becomes the new start_date
-                    // 2. Otherwise fall back to the old START DATE column
-                    // 3. end_date is optional — if empty in the sheet, stays NULL
                     const renewalDate = get(row, 'RENEWAL DATE');
                     const sheetStartDate = get(row, 'START DATE');
                     const sheetEndDate = get(row, 'END DATE');
 
-                    const startDate = renewalDate || sheetStartDate || null;
-                    const endDate = sheetEndDate || null;
+                    const renewalNorm = normalizeSheetDate(renewalDate);
+                    const startNorm = normalizeSheetDate(sheetStartDate);
+                    const endNorm = normalizeSheetDate(sheetEndDate);
+
+                    let startDate, endDate, pendingEndDate;
+
+                    if (renewalNorm) {
+                        startDate = renewalNorm;
+                        endDate = null;
+                        pendingEndDate = true;
+                    } else {
+                        startDate = startNorm || null;
+                        endDate = endNorm || null;
+                        pendingEndDate = false;
+                    }
 
                     const record = {
                         account_number: get(row, 'ACCOUNT'),
@@ -463,6 +510,7 @@ async function syncFromGoogleSheet() {
                         price: parseFloat(get(row, 'AMOUNT')) || 0,
                         start_date: startDate,
                         end_date: endDate,
+                        pending_end_date: pendingEndDate,
                     };
 
                     // Required check — do NOT require end_date anymore
@@ -475,8 +523,8 @@ async function syncFromGoogleSheet() {
                     try {
                         const result = await pool.query(
                             `INSERT INTO clients
-                                (account_number, name, phone, email, address, plan, price, start_date, end_date)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                (account_number, name, phone, email, address, plan, price, start_date, end_date, pending_end_date)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                              ON CONFLICT (account_number)
                              DO UPDATE SET
                                 name = EXCLUDED.name,
@@ -486,7 +534,8 @@ async function syncFromGoogleSheet() {
                                 plan = EXCLUDED.plan,
                                 price = EXCLUDED.price,
                                 start_date = EXCLUDED.start_date,
-                                end_date = EXCLUDED.end_date
+                                end_date = EXCLUDED.end_date,
+                                pending_end_date = EXCLUDED.pending_end_date
                              RETURNING (xmax = 0) AS inserted`,
                             [
                                 record.account_number,
@@ -498,6 +547,7 @@ async function syncFromGoogleSheet() {
                                 record.price,
                                 record.start_date,
                                 record.end_date,
+                                pendingEndDate,
                             ]
                         );
                         if (result.rows[0].inserted) inserted++;
