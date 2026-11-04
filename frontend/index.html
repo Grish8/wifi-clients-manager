@@ -7,8 +7,6 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
-
-        /* LOGIN */
         .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
         .login-container { background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 420px; padding: 45px 40px; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
@@ -30,7 +28,6 @@
         .login-hint { text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 0.85em; color: #6c757d; line-height: 1.6; }
         .login-hint code { background: #f0f4ff; color: #667eea; padding: 2px 8px; border-radius: 4px; font-family: 'Courier New', monospace; font-weight: bold; }
 
-        /* MODAL */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; animation: fadeIn 0.25s ease; }
         .modal-overlay.active { display: flex; }
         .modal { background: white; border-radius: 15px; box-shadow: 0 25px 70px rgba(0,0,0,0.4); width: 100%; max-width: 440px; padding: 35px 35px 30px; animation: modalSlide 0.3s ease; position: relative; }
@@ -60,7 +57,6 @@
         .strength-bar.active-strong { background: #28a745; }
         .strength-text { font-size: 0.8em; margin-top: 5px; color: #6c757d; font-weight: 600; }
 
-        /* APP */
         .app-wrapper { display: none; }
         .app-wrapper.visible { display: block; }
         .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
@@ -147,6 +143,8 @@
         .btn-success:hover { background: #218838; }
         .btn-warning { background: #ffc107; color: #333; padding: 8px 15px; font-size: 0.85em; }
         .btn-warning:hover { background: #e0a800; }
+        .btn-reset { background: #fd7e14; color: white; padding: 8px 15px; font-size: 0.85em; }
+        .btn-reset:hover { background: #e06a00; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
 
         .table-container { overflow-x: auto; }
@@ -161,7 +159,6 @@
         .status-active { background: #d4edda; color: #155724; }
         .status-expiring { background: #fff3cd; color: #856404; }
         .status-expired { background: #f8d7da; color: #721c24; }
-        .status-pending { background: #fff3cd; color: #856404; border: 1px dashed #ffc107; }
         .status-no-date { background: #ffe5e5; color: #b71c1c; font-weight: 700; }
         .location-badge { display: inline-block; background: #e8f0fe; color: #1967d2; padding: 3px 10px; border-radius: 12px; font-size: 0.85em; font-weight: 600; }
         .account-number { font-family: 'Courier New', monospace; font-weight: bold; color: #667eea; background: #f0f4ff; padding: 3px 8px; border-radius: 4px; font-size: 0.9em; }
@@ -171,7 +168,7 @@
         .empty-state p { font-size: 1em; }
         .search-box { width: 100%; padding: 12px 20px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 1em; margin-bottom: 20px; transition: border-color 0.3s; }
         .search-box:focus { outline: none; border-color: #667eea; }
-        .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
         .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; }
         .alert-warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
         .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
@@ -192,6 +189,7 @@
         .renewal-type-badge.renewal { background: #d4edda; color: #155724; }
         .renewal-type-badge.created { background: #cce5ff; color: #004085; }
         .renewal-type-badge.edit { background: #fff3cd; color: #856404; }
+        .renewal-type-badge.reset { background: #ffe0cc; color: #8a3b00; }
 
         .pending-info-banner { background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; color: #856404; }
         .pending-info-banner strong { color: #b71c1c; }
@@ -431,12 +429,12 @@
                                 <input type="number" id="planPrice" required placeholder="0.00" step="500.00" min="0">
                             </div>
                             <div class="form-group">
-                                <label for="startDate">Start Date</label>
-                                <input type="date" id="startDate">
+                                <label for="startDate">Start Date *</label>
+                                <input type="date" id="startDate" required>
                             </div>
                             <div class="form-group">
-                                <label for="endDate">End Date</label>
-                                <input type="date" id="endDate">
+                                <label for="endDate">End Date *</label>
+                                <input type="date" id="endDate" required>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary">Add Client</button>
@@ -484,11 +482,11 @@
                 </div>
             </div>
 
-            <!-- PENDING END DATE (NEW) -->
+            <!-- PENDING -->
             <div id="pending" class="tab-content">
                 <h2 style="margin-bottom: 20px; color: #333;">📋 Pending End Date (<span id="pendingCountLabel">0</span>)</h2>
                 <div class="pending-info-banner">
-                    These clients have been <strong>renewed</strong> (a new start date is set) but <strong>no end date has been entered yet</strong>. Click <strong>Set End Date</strong> to complete the renewal, or use <strong>Sync Sheets</strong> to re-import.
+                    These clients have been <strong>renewed</strong> (a start date is set) but <strong>no end date has been entered yet</strong>. Click <strong>Set End Date</strong> to complete the renewal, or use <strong>Sync Sheets</strong> to re-import.
                 </div>
                 <input type="text" class="search-box" id="searchPending" placeholder="🔍 Search pending clients..." oninput="renderPendingClients()">
                 <div class="table-container">
@@ -545,7 +543,7 @@
         const SYNC_SHEETS_URL = 'https://wifi-clients-manager.onrender.com/api/sync-sheets';
 
         // =====================================================
-        // AUTHENTICATION
+        // AUTH
         // =====================================================
         let isLoggedIn = false;
         let authToken = null;
@@ -583,14 +581,12 @@
             const password = document.getElementById('loginPassword').value;
             const errorBox = document.getElementById('loginError');
             errorBox.classList.remove('show');
-
             try {
                 const response = await fetch(`${AUTH_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password })
                 });
-
                 if (response.ok) {
                     const data = await response.json();
                     authToken = data.token;
@@ -614,10 +610,7 @@
         async function logout() {
             if (!confirm('Are you sure you want to log out?')) return;
             try {
-                await fetch(`${AUTH_URL}/logout`, {
-                    method: 'POST',
-                    headers: authHeaders()
-                });
+                await fetch(`${AUTH_URL}/logout`, { method: 'POST', headers: authHeaders() });
             } catch (e) {}
             authToken = null;
             isLoggedIn = false;
@@ -688,10 +681,8 @@
             const successBox = document.getElementById('cpSuccess');
             errorBox.classList.remove('show');
             successBox.classList.remove('show');
-
             if (newPassword.length < 6) { errorBox.textContent = '❌ New password must be at least 6 characters.'; errorBox.classList.add('show'); return; }
             if (newPassword !== confirmPassword) { errorBox.textContent = '❌ Passwords do not match.'; errorBox.classList.add('show'); return; }
-
             try {
                 const response = await fetch(`${AUTH_URL}/change-password`, {
                     method: 'POST',
@@ -730,7 +721,6 @@
                 }
             }, 30 * 60 * 1000);
         }
-
         ['click', 'keypress', 'mousemove', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, resetInactivityTimer, { passive: true });
         });
@@ -826,14 +816,9 @@
             if (!confirm('Import latest data from Google Sheets? This may update existing clients.')) return;
             showLoading(true);
             try {
-                const response = await fetch(SYNC_SHEETS_URL, {
-                    method: 'POST',
-                    headers: authHeaders()
-                });
+                const response = await fetch(SYNC_SHEETS_URL, { method: 'POST', headers: authHeaders() });
                 const result = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(result.error || `Sync failed (${response.status})`);
-                }
+                if (!response.ok) throw new Error(result.error || `Sync failed (${response.status})`);
                 await loadClients();
                 if (typeof result.inserted === 'number' && typeof result.updated === 'number') {
                     const failureCount = result.failed || 0;
@@ -849,11 +834,8 @@
             }
         }
 
-        // =====================================================
         // HELPERS
-        // =====================================================
         function getToday() { const today = new Date(); today.setHours(0, 0, 0, 0); return today; }
-
         function calculateDaysLeft(endDate) {
             const end = parseDateExact(endDate);
             if (!end) return null;
@@ -861,7 +843,6 @@
             end.setHours(0, 0, 0, 0);
             return Math.ceil((end - today) / (1000 * 60 * 60 * 24));
         }
-
         function getClientStatus(client) {
             if (client.pendingEndDate) return 'pending';
             if (!client.endDate) return 'pending';
@@ -870,32 +851,16 @@
             if (daysLeft <= 7) return 'expiring';
             return 'active';
         }
-
-        function getActiveClients() {
-            return clients.filter(c => !c.pendingEndDate && c.endDate && calculateDaysLeft(c.endDate) >= 0);
-        }
-        function getExpiredClients() {
-            return clients.filter(c => !c.pendingEndDate && c.endDate && calculateDaysLeft(c.endDate) < 0);
-        }
-        function getExpiringSoonClients() {
-            return clients.filter(c => {
-                if (c.pendingEndDate) return false;
-                if (!c.endDate) return false;
-                const days = calculateDaysLeft(c.endDate);
-                return days >= 0 && days <= 7;
-            });
-        }
-        function getPendingClients() {
-            return clients.filter(c => c.pendingEndDate === true);
-        }
+        function getActiveClients() { return clients.filter(c => !c.pendingEndDate && c.endDate && calculateDaysLeft(c.endDate) >= 0); }
+        function getExpiredClients() { return clients.filter(c => !c.pendingEndDate && c.endDate && calculateDaysLeft(c.endDate) < 0); }
+        function getExpiringSoonClients() { return clients.filter(c => { if (c.pendingEndDate || !c.endDate) return false; const days = calculateDaysLeft(c.endDate); return days >= 0 && days <= 7; }); }
+        function getPendingClients() { return clients.filter(c => c.pendingEndDate === true); }
 
         function formatDate(dateString) {
             const date = parseDateExact(dateString);
             if (!date) return '—';
             const day = date.getDate();
-            const ordinal = day % 100 >= 11 && day % 100 <= 13
-                ? 'th'
-                : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
+            const ordinal = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             return `${day}${ordinal} ${months[date.getMonth()]} ${date.getFullYear()}`;
         }
@@ -927,9 +892,25 @@
         }
 
         function endDateDisplay(client) {
-            return client.endDate
-                ? formatDate(client.endDate)
-                : '<span class="status-badge status-no-date">⚠️ Not set</span>';
+            return client.endDate ? formatDate(client.endDate) : '<span class="status-badge status-no-date">⚠️ Not set</span>';
+        }
+
+        // Action buttons shared helper
+        function actionButtons(client) {
+            const st = getClientStatus(client);
+            if (st === 'pending') {
+                return `<div class="action-buttons">
+                    <button class="btn btn-success" onclick="renewClient('${client.id}')">Set End Date</button>
+                    <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
+                    <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
+                </div>`;
+            }
+            return `<div class="action-buttons">
+                <button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button>
+                <button class="btn btn-reset" onclick="resetToPending('${client.id}')" title="Mark as renewed-but-pending-end-date">↺ Reset</button>
+                <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
+                <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
+            </div>`;
         }
 
         // =====================================================
@@ -1026,8 +1007,7 @@
             const q = query.toLowerCase();
             if (q) {
                 filtered = filtered.filter(c => {
-                    const haystack =
-                        field === 'all' ? [c.accountNumber, c.name, c.phone, c.plan, c.email, c.address].join(' ').toLowerCase()
+                    const haystack = field === 'all' ? [c.accountNumber, c.name, c.phone, c.plan, c.email, c.address].join(' ').toLowerCase()
                         : field === 'account_number' ? (c.accountNumber || '').toLowerCase()
                         : field === 'name' ? (c.name || '').toLowerCase()
                         : field === 'phone' ? (c.phone || '').toLowerCase()
@@ -1073,11 +1053,7 @@
                     <td>${formatDate(client.startDate)}</td>
                     <td>${endDateDisplay(client)}</td>
                     <td>${statusBadge(client)}</td>
-                    <td><div class="action-buttons">
-                        <button class="btn btn-success" onclick="renewClient('${client.id}')">${st === 'pending' ? 'Set End Date' : 'Renew'}</button>
-                        <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
-                        <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
-                    </div></td>
+                    <td>${actionButtons(client)}</td>
                 </tr>`;
             }).join('');
         }
@@ -1105,34 +1081,14 @@
             const empty = document.getElementById('filterEmpty');
             const table = document.getElementById('filterTable');
             let filtered = [], label = '', columnDefs = '', rowRenderer = null;
-
-            const actionsCell = (c) => {
-                const st = getClientStatus(c);
-                return `<div class="action-buttons">
-                    <button class="btn btn-success" onclick="renewClient('${c.id}')">${st === 'pending' ? 'Set End Date' : 'Renew'}</button>
-                    <button class="btn btn-warning" onclick="editClient('${c.id}')">Edit</button>
-                    <button class="btn btn-danger" onclick="deleteClient('${c.id}')">Delete</button>
-                </div>`;
-            };
-
             switch (filterType) {
                 case 'all':
                     filtered = [...clients]; label = 'All Clients';
                     columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Status</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const st = getClientStatus(c);
-                        const rowClass = st === 'pending' ? 'pending-row' : '';
-                        return {
-                            rowClass,
-                            cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td>
-                                <td>${locationCell(c)}</td>
-                                <td>${escapeHtml(c.phone)}</td>
-                                <td>${escapeHtml(c.plan)}</td>
-                                <td>${endDateDisplay(c)}</td>
-                                <td>${statusBadge(c)}</td>
-                                <td>${actionsCell(c)}</td>`
-                        };
+                        return { rowClass: st === 'pending' ? 'pending-row' : '',
+                            cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${locationCell(c)}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td><td>${endDateDisplay(c)}</td><td>${statusBadge(c)}</td><td>${actionButtons(c)}</td>` };
                     };
                     break;
                 case 'active':
@@ -1140,17 +1096,7 @@
                     columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = calculateDaysLeft(c.endDate);
-                        return {
-                            rowClass: '',
-                            cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td>
-                                <td>${locationCell(c)}</td>
-                                <td>${escapeHtml(c.phone)}</td>
-                                <td>${escapeHtml(c.plan)}</td>
-                                <td>${formatDate(c.endDate)}</td>
-                                <td>${d} day${d !== 1 ? 's' : ''}</td>
-                                <td>${actionsCell(c)}</td>`
-                        };
+                        return { rowClass: '', cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${locationCell(c)}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td><td>${formatDate(c.endDate)}</td><td>${d} day${d !== 1 ? 's' : ''}</td><td>${actionButtons(c)}</td>` };
                     };
                     break;
                 case 'expiring':
@@ -1158,17 +1104,7 @@
                     columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>End Date</th><th>Days Left</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = calculateDaysLeft(c.endDate);
-                        return {
-                            rowClass: '',
-                            cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td>
-                                <td>${locationCell(c)}</td>
-                                <td>${escapeHtml(c.phone)}</td>
-                                <td>${escapeHtml(c.plan)}</td>
-                                <td>${formatDate(c.endDate)}</td>
-                                <td><span class="status-badge status-expiring">${d} day${d !== 1 ? 's' : ''}</span></td>
-                                <td>${actionsCell(c)}</td>`
-                        };
+                        return { rowClass: '', cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${locationCell(c)}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td><td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expiring">${d} day${d !== 1 ? 's' : ''}</span></td><td>${actionButtons(c)}</td>` };
                     };
                     break;
                 case 'expired':
@@ -1176,35 +1112,16 @@
                     columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>Expired On</th><th>Days Expired</th><th>Actions</th>`;
                     rowRenderer = (c) => {
                         const d = Math.abs(calculateDaysLeft(c.endDate));
-                        return {
-                            rowClass: '',
-                            cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                                <td><strong>${escapeHtml(c.name)}</strong></td>
-                                <td>${locationCell(c)}</td>
-                                <td>${escapeHtml(c.phone)}</td>
-                                <td>${escapeHtml(c.plan)}</td>
-                                <td>${formatDate(c.endDate)}</td>
-                                <td><span class="status-badge status-expired">${d} day${d !== 1 ? 's' : ''} ago</span></td>
-                                <td>${actionsCell(c)}</td>`
-                        };
+                        return { rowClass: '', cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${locationCell(c)}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td><td>${formatDate(c.endDate)}</td><td><span class="status-badge status-expired">${d} day${d !== 1 ? 's' : ''} ago</span></td><td>${actionButtons(c)}</td>` };
                     };
                     break;
                 case 'pending':
                     filtered = getPendingClients(); label = 'Pending End Date (renewed, no end date yet)';
                     columnDefs = `<th>Account No.</th><th>Name</th><th>Location</th><th>Phone</th><th>Plan</th><th>Start Date (Renewal)</th><th>Actions</th>`;
-                    rowRenderer = (c) => ({
-                        rowClass: 'pending-row',
-                        cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td>
-                            <td><strong>${escapeHtml(c.name)}</strong></td>
-                            <td>${locationCell(c)}</td>
-                            <td>${escapeHtml(c.phone)}</td>
-                            <td>${escapeHtml(c.plan)}</td>
-                            <td>${formatDate(c.startDate)}</td>
-                            <td>${actionsCell(c)}</td>`
-                    });
+                    rowRenderer = (c) => ({ rowClass: 'pending-row',
+                        cells: `<td><span class="account-number">${escapeHtml(c.accountNumber)}</span></td><td><strong>${escapeHtml(c.name)}</strong></td><td>${locationCell(c)}</td><td>${escapeHtml(c.phone)}</td><td>${escapeHtml(c.plan)}</td><td>${formatDate(c.startDate)}</td><td>${actionButtons(c)}</td>` });
                     break;
             }
-
             title.innerHTML = `${label}: <span class="filter-count">${filtered.length}</span> client${filtered.length !== 1 ? 's' : ''}`;
             document.getElementById('searchResultsInfo').textContent = '';
             panel.classList.add('active');
@@ -1228,13 +1145,7 @@
         function renderActiveClients() {
             const searchTerm = (document.getElementById('searchActive').value || '').toLowerCase();
             const activeClients = getActiveClients();
-            const filtered = activeClients.filter(c =>
-                (c.name || '').toLowerCase().includes(searchTerm) ||
-                (c.phone || '').includes(searchTerm) ||
-                (c.plan || '').toLowerCase().includes(searchTerm) ||
-                (c.accountNumber || '').toLowerCase().includes(searchTerm) ||
-                (c.address || '').toLowerCase().includes(searchTerm)
-            );
+            const filtered = activeClients.filter(c => (c.name || '').toLowerCase().includes(searchTerm) || (c.phone || '').includes(searchTerm) || (c.plan || '').toLowerCase().includes(searchTerm) || (c.accountNumber || '').toLowerCase().includes(searchTerm) || (c.address || '').toLowerCase().includes(searchTerm));
             document.getElementById('activeCountLabel').textContent = activeClients.length;
             const tbody = document.getElementById('activeTableBody');
             const emptyState = document.getElementById('activeEmpty');
@@ -1259,15 +1170,9 @@
                     <td>${escapeHtml(client.phone)}</td>
                     <td>${escapeHtml(client.plan)}</td>
                     <td>Ksh ${parseFloat(client.price).toFixed(2)}</td>
-                    <td>${formatDate(client.startDate)}</td>
-                    <td>${formatDate(client.endDate)}</td>
-                    <td>${daysText}</td>
-                    <td>${statusBadgeHtml}</td>
-                    <td><div class="action-buttons">
-                        <button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button>
-                        <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
-                        <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
-                    </div></td>
+                    <td>${formatDate(client.startDate)}</td><td>${formatDate(client.endDate)}</td>
+                    <td>${daysText}</td><td>${statusBadgeHtml}</td>
+                    <td>${actionButtons(client)}</td>
                 </tr>`;
             }).join('');
         }
@@ -1278,13 +1183,7 @@
         function renderExpiredClients() {
             const searchTerm = (document.getElementById('searchExpired').value || '').toLowerCase();
             const expiredClients = getExpiredClients();
-            const filtered = expiredClients.filter(c =>
-                (c.name || '').toLowerCase().includes(searchTerm) ||
-                (c.phone || '').includes(searchTerm) ||
-                (c.plan || '').toLowerCase().includes(searchTerm) ||
-                (c.accountNumber || '').toLowerCase().includes(searchTerm) ||
-                (c.address || '').toLowerCase().includes(searchTerm)
-            );
+            const filtered = expiredClients.filter(c => (c.name || '').toLowerCase().includes(searchTerm) || (c.phone || '').includes(searchTerm) || (c.plan || '').toLowerCase().includes(searchTerm) || (c.accountNumber || '').toLowerCase().includes(searchTerm) || (c.address || '').toLowerCase().includes(searchTerm));
             document.getElementById('expiredCountLabel').textContent = expiredClients.length;
             const tbody = document.getElementById('expiredTableBody');
             const emptyState = document.getElementById('expiredEmpty');
@@ -1307,28 +1206,18 @@
                     <td>Ksh ${parseFloat(client.price).toFixed(2)}</td>
                     <td>${formatDate(client.endDate)}</td>
                     <td><span class="status-badge status-expired">${daysExpired} day${daysExpired !== 1 ? 's' : ''} ago</span></td>
-                    <td><div class="action-buttons">
-                        <button class="btn btn-success" onclick="renewClient('${client.id}')">Renew</button>
-                        <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
-                        <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
-                    </div></td>
+                    <td>${actionButtons(client)}</td>
                 </tr>`;
             }).join('');
         }
 
         // =====================================================
-        // RENDER PENDING (NEW)
+        // RENDER PENDING
         // =====================================================
         function renderPendingClients() {
             const searchTerm = (document.getElementById('searchPending').value || '').toLowerCase();
             const pendingClients = getPendingClients();
-            const filtered = pendingClients.filter(c =>
-                (c.name || '').toLowerCase().includes(searchTerm) ||
-                (c.phone || '').includes(searchTerm) ||
-                (c.plan || '').toLowerCase().includes(searchTerm) ||
-                (c.accountNumber || '').toLowerCase().includes(searchTerm) ||
-                (c.address || '').toLowerCase().includes(searchTerm)
-            );
+            const filtered = pendingClients.filter(c => (c.name || '').toLowerCase().includes(searchTerm) || (c.phone || '').includes(searchTerm) || (c.plan || '').toLowerCase().includes(searchTerm) || (c.accountNumber || '').toLowerCase().includes(searchTerm) || (c.address || '').toLowerCase().includes(searchTerm));
             document.getElementById('pendingCountLabel').textContent = pendingClients.length;
             const tbody = document.getElementById('pendingTableBody');
             const emptyState = document.getElementById('pendingEmpty');
@@ -1350,11 +1239,7 @@
                     <td>Ksh ${parseFloat(client.price).toFixed(2)}</td>
                     <td>${formatDate(client.startDate)}</td>
                     <td><span class="status-badge status-no-date">⚠️ Not set</span></td>
-                    <td><div class="action-buttons">
-                        <button class="btn btn-success" onclick="renewClient('${client.id}')">Set End Date</button>
-                        <button class="btn btn-warning" onclick="editClient('${client.id}')">Edit</button>
-                        <button class="btn btn-danger" onclick="deleteClient('${client.id}')">Delete</button>
-                    </div></td>
+                    <td>${actionButtons(client)}</td>
                 </tr>
             `).join('');
         }
@@ -1369,9 +1254,7 @@
                     headers: authHeaders(),
                     body: JSON.stringify(entry)
                 });
-            } catch (e) {
-                console.warn('History recording failed.');
-            }
+            } catch (e) { console.warn('History recording failed.'); }
         }
 
         async function loadHistory() {
@@ -1385,19 +1268,18 @@
         async function renderHistory() {
             await loadHistory();
             const searchTerm = (document.getElementById('searchHistory').value || '').toLowerCase();
-            const filtered = renewalHistory.filter(h => !searchTerm ||
-                (h.client_name || '').toLowerCase().includes(searchTerm) ||
-                (h.account_number || '').toLowerCase().includes(searchTerm) ||
-                (h.plan || '').toLowerCase().includes(searchTerm));
+            const filtered = renewalHistory.filter(h => !searchTerm || (h.client_name || '').toLowerCase().includes(searchTerm) || (h.account_number || '').toLowerCase().includes(searchTerm) || (h.plan || '').toLowerCase().includes(searchTerm));
             const summary = document.getElementById('historySummary');
             const totalRenewals = renewalHistory.filter(h => h.type === 'renewal').length;
             const totalCreated = renewalHistory.filter(h => h.type === 'created').length;
             const totalEdits = renewalHistory.filter(h => h.type === 'edit').length;
+            const totalResets = renewalHistory.filter(h => h.type === 'reset').length;
             summary.innerHTML = `
                 <div class="history-stat"><div class="num">${renewalHistory.length}</div><div class="lbl">Total Records</div></div>
                 <div class="history-stat"><div class="num">${totalRenewals}</div><div class="lbl">Renewals</div></div>
                 <div class="history-stat"><div class="num">${totalCreated}</div><div class="lbl">New Clients</div></div>
                 <div class="history-stat"><div class="num">${totalEdits}</div><div class="lbl">Edits</div></div>
+                <div class="history-stat"><div class="num">${totalResets}</div><div class="lbl">Resets to Pending</div></div>
             `;
             const tbody = document.getElementById('historyTableBody');
             const emptyState = document.getElementById('historyEmpty');
@@ -1410,8 +1292,8 @@
             }
             table.style.display = 'table'; emptyState.style.display = 'none';
             tbody.innerHTML = filtered.map(h => {
-                const typeClass = h.type === 'renewal' ? 'renewal' : h.type === 'created' ? 'created' : 'edit';
-                const typeLabel = h.type === 'renewal' ? 'Renewal' : h.type === 'created' ? 'New Client' : 'Edit';
+                const typeClass = h.type === 'renewal' ? 'renewal' : h.type === 'created' ? 'created' : h.type === 'reset' ? 'reset' : 'edit';
+                const typeLabel = h.type === 'renewal' ? 'Renewal' : h.type === 'created' ? 'New Client' : h.type === 'reset' ? 'Reset to Pending' : 'Edit';
                 const dateStr = h.created_at ? formatDate(new Date(h.created_at).toISOString()) : (h.date ? formatDate(h.date) : 'N/A');
                 return `<tr>
                     <td>${dateStr}</td>
@@ -1448,6 +1330,12 @@
                 alert(`❌ Account number "${accountNumber}" already exists.`);
                 return;
             }
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!startDate || !endDate) {
+                alert('❌ Both Start Date and End Date are required.');
+                return;
+            }
             const payload = {
                 account_number: accountNumber,
                 name: document.getElementById('clientName').value.trim(),
@@ -1456,8 +1344,8 @@
                 address: document.getElementById('clientAddress').value.trim(),
                 plan: document.getElementById('planType').value,
                 price: parseFloat(document.getElementById('planPrice').value),
-                start_date: document.getElementById('startDate').value || null,
-                end_date: document.getElementById('endDate').value || null,
+                start_date: startDate,
+                end_date: endDate,
             };
             showLoading(true);
             try {
@@ -1471,17 +1359,9 @@
                     alert('❌ ' + (err.error || 'Failed to add client'));
                     return;
                 }
-                await recordHistory({
-                    account_number: payload.account_number,
-                    client_name: payload.name,
-                    plan: payload.plan,
-                    type: 'created',
-                    previous_end_date: null,
-                    new_end_date: payload.end_date
-                });
+                await recordHistory({ account_number: payload.account_number, client_name: payload.name, plan: payload.plan, type: 'created', previous_end_date: null, new_end_date: payload.end_date });
                 document.getElementById('clientForm').reset();
                 setDefaultDates();
-                document.getElementById('endDate').required = true;
                 await loadClients();
                 alert(`✅ Client "${payload.name}" added successfully!`);
             } catch (error) {
@@ -1514,7 +1394,7 @@
         }
 
         // =====================================================
-        // RENEW (also "Set End Date" for pending)
+        // RENEW (also Set End Date for pending)
         // =====================================================
         async function renewClient(id) {
             const client = clients.find(c => String(c.id) === String(id));
@@ -1549,19 +1429,75 @@
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) throw new Error('Renew failed');
-                await recordHistory({
-                    account_number: client.accountNumber,
-                    client_name: client.name,
-                    plan: client.plan,
-                    type: 'renewal',
-                    previous_end_date: previousEndDate,
-                    new_end_date: newEndDate
-                });
+                await recordHistory({ account_number: client.accountNumber, client_name: client.name, plan: client.plan, type: 'renewal', previous_end_date: previousEndDate, new_end_date: newEndDate });
                 await loadClients();
                 alert(`✅ ${isPending ? 'End date set' : 'Subscription renewed'} for "${client.name}" until ${formatDate(newEndDate)}`);
             } catch (error) {
                 console.error(error);
                 alert('❌ Failed to save.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // =====================================================
+        // RESET TO PENDING (NEW)
+        // =====================================================
+        async function resetToPending(id) {
+            const client = clients.find(c => String(c.id) === String(id));
+            if (!client) return;
+            if (client.pendingEndDate) {
+                alert('This client is already pending.');
+                return;
+            }
+            const confirmMsg = `Reset "${client.name}" (${client.accountNumber}) to PENDING?\n\n` +
+                `This will:\n` +
+                `  • Keep the current start date (${formatDate(client.startDate)})\n` +
+                `  • Clear the end date\n` +
+                `  • Move the client to the "Pending End Date" tab\n\n` +
+                `Continue?`;
+            if (!confirm(confirmMsg)) return;
+
+            // Ask if they want to update the start date (e.g., to today or a custom date)
+            const newStartDate = prompt(
+                `Optional: enter a new START DATE for the renewal (YYYY-MM-DD).\n\n` +
+                `Leave blank to keep the current start date (${formatDate(client.startDate)}).`,
+                ''
+            );
+
+            let startDateToSend = null;
+            if (newStartDate && newStartDate.trim()) {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(newStartDate.trim()) || isNaN(parseDateExact(newStartDate.trim()))) {
+                    alert('❌ Invalid date format. Please use YYYY-MM-DD.');
+                    return;
+                }
+                startDateToSend = newStartDate.trim();
+            }
+
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/${id}/reset-pending`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ start_date: startDateToSend })
+                });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'Reset failed');
+                }
+                await recordHistory({
+                    account_number: client.accountNumber,
+                    client_name: client.name,
+                    plan: client.plan,
+                    type: 'reset',
+                    previous_end_date: client.endDate || null,
+                    new_end_date: null
+                });
+                await loadClients();
+                alert(`✅ "${client.name}" moved to Pending End Date.`);
+            } catch (error) {
+                console.error(error);
+                alert('❌ ' + (error.message || 'Failed to reset client.'));
             } finally {
                 showLoading(false);
             }
@@ -1594,9 +1530,19 @@
             document.getElementById('planType').value = client.plan;
             document.getElementById('planPrice').value = client.price;
             document.getElementById('startDate').value = client.startDate || '';
+            document.getElementById('endDate').value = client.endDate || '';
+
             const endDateInput = document.getElementById('endDate');
-            endDateInput.value = client.endDate || '';
-            endDateInput.required = !client.pendingEndDate;
+            const startDateInput = document.getElementById('startDate');
+            // If pending, only require start date
+            if (client.pendingEndDate) {
+                endDateInput.required = false;
+                startDateInput.required = true;
+            } else {
+                endDateInput.required = true;
+                startDateInput.required = true;
+            }
+
             const form = document.getElementById('clientForm');
             const submitBtn = form.querySelector('button[type="submit"]');
             submitBtn.textContent = 'Update Client';
@@ -1608,6 +1554,10 @@
                     alert(`❌ Account number "${newAccountNumber}" already exists.`);
                     return;
                 }
+                const newStart = document.getElementById('startDate').value;
+                const newEnd = document.getElementById('endDate').value;
+                if (!newStart) { alert('❌ Start Date is required.'); return; }
+                if (!client.pendingEndDate && !newEnd) { alert('❌ End Date is required.'); return; }
                 const payload = {
                     account_number: newAccountNumber,
                     name: document.getElementById('clientName').value.trim(),
@@ -1616,8 +1566,8 @@
                     address: document.getElementById('clientAddress').value.trim(),
                     plan: document.getElementById('planType').value,
                     price: parseFloat(document.getElementById('planPrice').value),
-                    start_date: document.getElementById('startDate').value || null,
-                    end_date: document.getElementById('endDate').value || null,
+                    start_date: newStart,
+                    end_date: newEnd || null,
                 };
                 showLoading(true);
                 try {
@@ -1637,8 +1587,9 @@
                     });
                     await loadClients();
                     form.reset();
-                    setDefaultDates();
                     endDateInput.required = true;
+                    startDateInput.required = true;
+                    setDefaultDates();
                     form.onsubmit = addClient;
                     submitBtn.textContent = 'Add Client';
                     alert(`✅ Client "${payload.name}" updated successfully!`);

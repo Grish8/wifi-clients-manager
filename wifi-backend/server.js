@@ -286,8 +286,8 @@ app.put('/api/clients/:id', async (req, res) => {
             `UPDATE clients SET
                 account_number = $1, name = $2, phone = $3, email = $4, address = $5,
                 plan = $6, price = $7, start_date = $8, end_date = $9,
-                pending_end_date = CASE WHEN $9 IS NULL THEN pending_end_date ELSE FALSE END
-             WHERE id = $10 AND (pending_end_date = TRUE OR $9 IS NOT NULL)
+                pending_end_date = FALSE
+             WHERE id = $10
              RETURNING *`,
             [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null, id]
         );
@@ -301,6 +301,30 @@ app.put('/api/clients/:id', async (req, res) => {
     } catch (err) {
         if (err.code === '23505') return res.status(400).json({ error: 'Account number already exists' });
         sendDbError(res, err, 'PUT');
+    }
+});
+
+// =====================================================
+// RESET TO PENDING (renewal date set, no end date)
+// =====================================================
+app.post('/api/clients/:id/reset-pending', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { start_date } = req.body; // optional new start date
+    try {
+        const result = await pool.query(
+            `UPDATE clients SET
+                start_date = COALESCE($1, start_date),
+                end_date = NULL,
+                pending_end_date = TRUE
+             WHERE id = $2
+             RETURNING *`,
+            [start_date || null, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+        console.log(`✅ Reset to pending: ${result.rows[0].name} (${result.rows[0].account_number})`);
+        res.json(result.rows[0]);
+    } catch (err) {
+        sendDbError(res, err, 'Reset to pending');
     }
 });
 
