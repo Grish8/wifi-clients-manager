@@ -444,7 +444,12 @@ async function syncFromGoogleSheet() {
             { id: process.env.GOOGLE_SHEET_ID, tab: 'NOVEMBER-CONFIG' },
         ];
 
-        let inserted = 0, updated = 0, skipped = 0, errors = [];
+        let inserted = 0, updated = 0, skipped = 0, deleted = 0;
+        const errors = [];
+
+        // ── Track every account_number found in ANY synced tab ──
+        // We use a Set so duplicates across tabs don't matter.
+        const sheetAccounts = new Set();
 
         for (const src of SOURCES) {
             if (!src.id) {
@@ -467,10 +472,9 @@ async function syncFromGoogleSheet() {
                 const headers = rows[0];
                 const headerIndex = {};
                 headers.forEach((h, i) => {
-                    if (h) headerIndex[h.trim()] = i;
+                    if (h) headerIndex[h.trim().toUpperCase()] = i;
                 });
 
-                // Required headers — RENEWAL DATE, START DATE, END DATE are optional
                 const REQUIRED_SHEET_HEADERS = [
                     'ACCOUNT', 'FIRST NAME', 'SECOND NAME',
                     'PHONE NO.', 'PACKAGE', 'AMOUNT',
@@ -484,7 +488,7 @@ async function syncFromGoogleSheet() {
                 }
 
                 const get = (row, sheetHeader) => {
-                    const idx = headerIndex[sheetHeader];
+                    const idx = headerIndex[sheetHeader.trim().toUpperCase()];
                     if (idx === undefined) return null;
                     const val = row[idx];
                     return val === undefined ? null : String(val).trim();
@@ -497,12 +501,12 @@ async function syncFromGoogleSheet() {
                         continue;
                     }
 
+                    const account_number = get(row, 'ACCOUNT');
+                    if (account_number) sheetAccounts.add(String(account_number).toUpperCase());
+
                     const firstName = get(row, 'FIRST NAME');
                     const secondName = get(row, 'SECOND NAME');
-                    const fullName = [firstName, secondName]
-                        .filter(Boolean)
-                        .join(' ')
-                        .trim();
+                    const fullName = [firstName, secondName].filter(Boolean).join(' ').trim();
 
                     const renewalDate = get(row, 'RENEWAL DATE');
                     const sheetStartDate = get(row, 'START DATE');
@@ -513,7 +517,6 @@ async function syncFromGoogleSheet() {
                     const endNorm = normalizeSheetDate(sheetEndDate);
 
                     let startDate, endDate, pendingEndDate;
-
                     if (renewalNorm) {
                         startDate = renewalNorm;
                         endDate = null;
@@ -525,7 +528,7 @@ async function syncFromGoogleSheet() {
                     }
 
                     const record = {
-                        account_number: get(row, 'ACCOUNT'),
+                        account_number,
                         name: fullName,
                         phone: get(row, 'PHONE NO.'),
                         email: get(row, 'EMAIL'),
@@ -534,10 +537,8 @@ async function syncFromGoogleSheet() {
                         price: parseFloat(get(row, 'AMOUNT')) || 0,
                         start_date: startDate,
                         end_date: endDate,
-                        pending_end_date: pendingEndDate,
                     };
 
-                    // Required check — do NOT require end_date anymore
                     if (!record.account_number || !record.name || !record.phone || !record.plan) {
                         console.warn(`   ⚠️  Row ${r + 1}: missing required field(s), skipping`);
                         skipped++;
@@ -590,8 +591,57 @@ async function syncFromGoogleSheet() {
             }
         }
 
-        console.log(`✅ Sync complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped`);
-        return { success: true, inserted, updated, skipped, errors };
+        // ── Step 2: Delete DB clients that no longer exist in the sheet ──
+        // Only run this if at least one tab was read successfully.
+        // (Otherwise a failed sheet read would delete EVERYTHING.)
+        if (sheetAccounts.size > 0) {
+            console.log(`   🗑️  Checking for deleted accounts (${sheetAccounts.size} accounts in sheet)...`);
+
+            // Find DB clients whose account_number is NOT in sheetAccounts
+            const dbAccounts = await pool.query('SELECT account_number FROM clients');
+            const toDelete = dbAccounts.rows
+                .map(r => r.account_number)
+                .filter(acc => acc && !sheetAccounts.has(String(acc).toUpperCase()));
+
+            if (toDelete.length > 0) {
+                // Delete them one by one with logging
+                for (const acc of toDelete) {
+                    try {
+                        const del = await pool.query(
+                            'DELETE FROM clients WHERE account_number = $1 RETURNING account_number, name',
+                            [acc]
+                        );
+                        if (del.rows.length > 0) {
+                            console.log(`   🗑️  Deleted: ${del.rows[0].name} (${del.rows[0].account_number})`);
+                            deleted++;
+                            // Record the deletion in history
+                            try {
+                                await pool.query(
+                                    `INSERT INTO renewal_history
+                                        (account_number, client_name, plan, type, previous_end_date, new_end_date)
+                                     VALUES ($1, $2, $3, 'deleted', NULL, NULL)`,
+                                    [del.rows[0].account_number, del.rows[0].name, '—']
+                                );
+                            } catch (histErr) {
+                                console.error(`   ⚠️  Failed to log deletion to history: ${histErr.message}`);
+                            }
+                        }
+                    } catch (delErr) {
+                        const msg = `Delete failed for ${acc}: ${delErr.message}`;
+                        console.error(`   ❌ ${msg}`);
+                        errors.push(msg);
+                    }
+                }
+            } else {
+                console.log('   ✓ No deleted accounts to remove.');
+            }
+        } else {
+            console.warn('   ⚠️  Skipping deletion step: no accounts were read from the sheet.');
+            console.warn('      (Prevents accidental data wipe when the sheet is unreachable.)');
+        }
+
+        console.log(`✅ Sync complete: ${inserted} inserted, ${updated} updated, ${deleted} deleted, ${skipped} skipped`);
+        return { success: true, inserted, updated, deleted, skipped, errors };
     } catch (err) {
         console.error('❌ Sync failed:', err.message);
         throw err;

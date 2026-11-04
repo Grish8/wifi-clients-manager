@@ -190,6 +190,7 @@
         .renewal-type-badge.created { background: #cce5ff; color: #004085; }
         .renewal-type-badge.edit { background: #fff3cd; color: #856404; }
         .renewal-type-badge.reset { background: #ffe0cc; color: #8a3b00; }
+        .renewal-type-badge.deleted { background: #f8d7da; color: #721c24; }
 
         .pending-info-banner { background: #fff3cd; border-left: 5px solid #ffc107; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 500; color: #856404; }
         .pending-info-banner strong { color: #b71c1c; }
@@ -1292,8 +1293,8 @@
             }
             table.style.display = 'table'; emptyState.style.display = 'none';
             tbody.innerHTML = filtered.map(h => {
-                const typeClass = h.type === 'renewal' ? 'renewal' : h.type === 'created' ? 'created' : h.type === 'reset' ? 'reset' : 'edit';
-                const typeLabel = h.type === 'renewal' ? 'Renewal' : h.type === 'created' ? 'New Client' : h.type === 'reset' ? 'Reset to Pending' : 'Edit';
+                const typeClass = h.type === 'renewal' ? 'renewal' : h.type === 'created' ? 'created' : h.type === 'reset' ? 'reset' : h.type === 'deleted' ? 'deleted' : 'edit';
+                const typeLabel = h.type === 'renewal' ? 'Renewal' : h.type === 'created' ? 'New Client' : h.type === 'reset' ? 'Reset to Pending' : h.type === 'deleted' ? 'Deleted (sheet)' : 'Edit';
                 const dateStr = h.created_at ? formatDate(new Date(h.created_at).toISOString()) : (h.date ? formatDate(h.date) : 'N/A');
                 return `<tr>
                     <td>${dateStr}</td>
