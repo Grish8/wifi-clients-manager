@@ -78,6 +78,8 @@ const pool = new Pool({
         await pool.query(`ALTER TABLE clients ALTER COLUMN start_date DROP NOT NULL;`);
         await pool.query(`ALTER TABLE clients ALTER COLUMN end_date DROP NOT NULL;`);
         await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS pending_end_date BOOLEAN DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS message_sent BOOLEAN DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS wifi_disabled BOOLEAN DEFAULT FALSE;`);
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS renewal_history (
@@ -286,7 +288,9 @@ app.put('/api/clients/:id', async (req, res) => {
             `UPDATE clients SET
                 account_number = $1, name = $2, phone = $3, email = $4, address = $5,
                 plan = $6, price = $7, start_date = $8, end_date = $9,
-                pending_end_date = FALSE
+                pending_end_date = FALSE,
+                wifi_disabled = FALSE,
+                message_sent = FALSE
              WHERE id = $10
              RETURNING *`,
             [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null, id]
@@ -301,6 +305,44 @@ app.put('/api/clients/:id', async (req, res) => {
     } catch (err) {
         if (err.code === '23505') return res.status(400).json({ error: 'Account number already exists' });
         sendDbError(res, err, 'PUT');
+    }
+});
+
+// =====================================================
+// TOGGLE: message_sent (Expiring Soon tab)
+// =====================================================
+app.post('/api/clients/:id/toggle-message-sent', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { value } = req.body; // boolean
+    try {
+        const result = await pool.query(
+            `UPDATE clients SET message_sent = $1 WHERE id = $2 RETURNING *`,
+            [!!value, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+        console.log(`✅ message_sent=${!!value} for ${result.rows[0].account_number}`);
+        res.json(result.rows[0]);
+    } catch (err) {
+        sendDbError(res, err, 'Toggle message_sent');
+    }
+});
+
+// =====================================================
+// TOGGLE: wifi_disabled (Expired Users tab)
+// =====================================================
+app.post('/api/clients/:id/toggle-wifi-disabled', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { value } = req.body; // boolean
+    try {
+        const result = await pool.query(
+            `UPDATE clients SET wifi_disabled = $1 WHERE id = $2 RETURNING *`,
+            [!!value, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+        console.log(`✅ wifi_disabled=${!!value} for ${result.rows[0].account_number}`);
+        res.json(result.rows[0]);
+    } catch (err) {
+        sendDbError(res, err, 'Toggle wifi_disabled');
     }
 });
 
