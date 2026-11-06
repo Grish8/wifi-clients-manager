@@ -601,8 +601,16 @@ async function syncFromGoogleSheet() {
                                 plan = EXCLUDED.plan,
                                 price = EXCLUDED.price,
                                 start_date = EXCLUDED.start_date,
-                                end_date = EXCLUDED.end_date,
-                                pending_end_date = EXCLUDED.pending_end_date
+                                end_date = CASE
+                                    WHEN clients.end_date IS NULL AND clients.pending_end_date = TRUE THEN EXCLUDED.end_date
+                                    ELSE clients.end_date
+                                END,
+                                pending_end_date = CASE
+                                    WHEN clients.pending_end_date = TRUE
+                                         AND clients.end_date IS NULL
+                                         AND EXCLUDED.end_date IS NULL THEN TRUE
+                                    ELSE FALSE
+                                END
                              RETURNING (xmax = 0) AS inserted`,
                             [
                                 record.account_number,
