@@ -284,6 +284,15 @@ app.put('/api/clients/:id', async (req, res) => {
         return res.status(400).json({ error: 'Missing required fields' });
     }
     try {
+        const current = await pool.query(
+            'SELECT end_date, pending_end_date FROM clients WHERE id = $1',
+            [id]
+        );
+        if (current.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+
+        const previousEndDate = current.rows[0].end_date;
+        const wasPending = current.rows[0].pending_end_date === true;
+
         const result = await pool.query(
             `UPDATE clients SET
                 account_number = $1, name = $2, phone = $3, email = $4, address = $5,
@@ -295,13 +304,14 @@ app.put('/api/clients/:id', async (req, res) => {
              RETURNING *`,
             [account_number, name, phone, email || null, address || null, plan, price, start_date || null, end_date || null, id]
         );
-        if (result.rows.length === 0) {
-            const existing = await pool.query('SELECT 1 FROM clients WHERE id = $1', [id]);
-            if (existing.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Client not found' });
+
         console.log(`✅ Updated client: ${name} (${account_number})`);
-        res.json(result.rows[0]);
+        res.json({
+            ...result.rows[0],
+            _previous_end_date: previousEndDate,
+            _was_pending: wasPending
+        });
     } catch (err) {
         if (err.code === '23505') return res.status(400).json({ error: 'Account number already exists' });
         sendDbError(res, err, 'PUT');

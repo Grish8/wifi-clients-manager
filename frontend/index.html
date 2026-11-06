@@ -1521,7 +1521,6 @@
                 alert('❌ Invalid date format. Please use YYYY-MM-DD.');
                 return;
             }
-            const previousEndDate = client.endDate || null;
             const payload = {
                 account_number: client.accountNumber,
                 name: client.name,
@@ -1541,7 +1540,19 @@
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) throw new Error('Renew failed');
-                await recordHistory({ account_number: client.accountNumber, client_name: client.name, plan: client.plan, type: 'renewal', previous_end_date: previousEndDate, new_end_date: newEndDate });
+                const updated = await response.json();
+                const dbPreviousEndDate = updated._previous_end_date
+                    ? toYMD(updated._previous_end_date)
+                    : null;
+
+                await recordHistory({
+                    account_number: client.accountNumber,
+                    client_name: client.name,
+                    plan: client.plan,
+                    type: 'renewal',
+                    previous_end_date: dbPreviousEndDate,
+                    new_end_date: newEndDate
+                });
                 await loadClients();
                 alert(`✅ ${isPending ? 'End date set' : 'Subscription renewed'} for "${client.name}" until ${formatDate(newEndDate)}`);
             } catch (error) {
@@ -1653,7 +1664,6 @@
             const form = document.getElementById('clientForm');
             const submitBtn = form.querySelector('button[type="submit"]');
             submitBtn.textContent = 'Update Client';
-            const previousEndDate = client.endDate || null;
             form.onsubmit = async function(e) {
                 e.preventDefault();
                 const newAccountNumber = document.getElementById('accountNumber').value.trim();
@@ -1684,12 +1694,17 @@
                         body: JSON.stringify(payload)
                     });
                     if (!response.ok) throw new Error('Update failed');
+                    const updated = await response.json();
+                    const dbPreviousEndDate = updated._previous_end_date
+                        ? toYMD(updated._previous_end_date)
+                        : null;
+
                     await recordHistory({
                         account_number: payload.account_number,
                         client_name: payload.name,
                         plan: payload.plan,
                         type: 'edit',
-                        previous_end_date: previousEndDate,
+                        previous_end_date: dbPreviousEndDate,
                         new_end_date: payload.end_date
                     });
                     await loadClients();
