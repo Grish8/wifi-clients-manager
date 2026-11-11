@@ -233,6 +233,13 @@ app.get('/api/health', async (req, res) => {
 });
 
 // =====================================================
+// LIGHTWEIGHT KEEP-ALIVE (no DB hit)
+// =====================================================
+app.get('/api/ping', (req, res) => {
+    res.json({ ok: true, time: new Date().toISOString() });
+});
+
+// =====================================================
 // CLIENTS ROUTES
 // =====================================================
 app.get('/api/clients', async (req, res) => {

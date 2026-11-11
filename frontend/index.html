@@ -22,6 +22,45 @@
         .toggle-password:hover { color: #667eea; }
         .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1.05em; font-weight: 600; cursor: pointer; transition: all 0.3s; margin-top: 10px; }
         .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); }
+        .login-btn.loading {
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        .login-btn .login-btn-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .login-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+            color: #667eea;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        .login-overlay.active { display: flex; }
+        .login-overlay .spinner {
+            width: 56px;
+            height: 56px;
+            border: 5px solid #e0e7ff;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
         .login-error { display: none; background: #f8d7da; color: #721c24; padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.9em; border-left: 4px solid #dc3545; animation: shake 0.4s; }
         .login-error.show { display: block; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
@@ -314,6 +353,10 @@
                     <button type="submit" class="btn btn-primary">💾 Update Password</button>
                 </div>
             </form>
+        </div>
+        <div id="loginOverlay" class="login-overlay">
+            <div class="spinner"></div>
+            <span id="loginOverlayText">Signing you in…</span>
         </div>
     </div>
 
@@ -615,9 +658,32 @@
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
             const password = document.getElementById('loginPassword').value;
             const errorBox = document.getElementById('loginError');
+            const submitBtn = this.querySelector('.login-btn');
+            const overlay = document.getElementById('loginOverlay');
+            const overlayText = document.getElementById('loginOverlayText');
+
             errorBox.classList.remove('show');
+
+            const originalBtnHTML = submitBtn.innerHTML;
+            submitBtn.classList.add('loading');
+            submitBtn.innerHTML = '<span class="login-btn-spinner"></span>Signing in…';
+            overlay.classList.add('active');
+            overlayText.textContent = 'Waking up the server… this can take up to 30s';
+
+            let waited = 0;
+            const wakeMsg = setInterval(() => {
+                waited += 3;
+                if (waited >= 8) {
+                    overlayText.textContent = 'Almost there… thanks for your patience';
+                }
+                if (waited >= 20) {
+                    overlayText.textContent = 'Still loading… the server is slowly waking up';
+                }
+            }, 3000);
+
             try {
                 const response = await fetch(`${AUTH_URL}/login`, {
                     method: 'POST',
@@ -629,6 +695,9 @@
                     authToken = data.token;
                     isLoggedIn = true;
                     failedAttempts = 0;
+
+                    startKeepAlive();
+
                     showApp();
                 } else {
                     failedAttempts++;
@@ -641,17 +710,68 @@
                 }
             } catch (err) {
                 alert('❌ Cannot reach the server. Is the backend running?');
+            } finally {
+                clearInterval(wakeMsg);
+                overlay.classList.remove('active');
+                submitBtn.classList.remove('loading');
+                submitBtn.innerHTML = originalBtnHTML;
             }
         });
 
         async function logout() {
             if (!confirm('Are you sure you want to log out?')) return;
+            stopKeepAlive();
             try {
                 await fetch(`${AUTH_URL}/logout`, { method: 'POST', headers: authHeaders() });
             } catch (e) {}
             authToken = null;
             isLoggedIn = false;
             showLogin();
+        }
+
+        // =====================================================
+        // RENDER KEEP-AWAKE (while logged in)
+        // =====================================================
+        // Render free tier spins down after ~15 min of inactivity.
+        // A GET /api/health every 4 minutes keeps it warm.
+        let keepAliveTimer = null;
+        let keepAlivePingCount = 0;
+
+        function startKeepAlive() {
+            stopKeepAlive();
+            keepAlivePingCount = 0;
+            pingBackend();
+            keepAliveTimer = setInterval(pingBackend, 4 * 60 * 1000);
+            console.log('🟢 Keep-alive started (every 4 minutes)');
+        }
+
+        function stopKeepAlive() {
+            if (keepAliveTimer) {
+                clearInterval(keepAliveTimer);
+                keepAliveTimer = null;
+                console.log('🔴 Keep-alive stopped');
+            }
+        }
+
+        async function pingBackend() {
+            if (!isLoggedIn) {
+                stopKeepAlive();
+                return;
+            }
+            try {
+                const t0 = performance.now();
+                const res = await fetch(`${API_URL.replace('/clients', '')}/ping?_t=${Date.now()}`);
+                const ms = Math.round(performance.now() - t0);
+                keepAlivePingCount++;
+                if (res.ok) {
+                    console.log(`💓 Keep-alive ping #${keepAlivePingCount} OK (${ms}ms)`);
+                    setConnectionStatus(true);
+                } else {
+                    console.warn(`💓 Keep-alive ping #${keepAlivePingCount} returned ${res.status}`);
+                }
+            } catch (e) {
+                console.warn('💓 Keep-alive ping failed:', e.message);
+            }
         }
 
         // =====================================================
@@ -751,6 +871,7 @@
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
                 if (isLoggedIn) {
+                    stopKeepAlive();
                     authToken = null;
                     isLoggedIn = false;
                     alert('🔒 You have been logged out due to inactivity.');
